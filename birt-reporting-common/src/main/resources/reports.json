@@ -1,0 +1,15 @@
+
+[
+  {
+    "id": 1,
+    "name": "test.rptdesign",
+    "description": "a report about x",
+    "data": "0xasdf;alksjdf;lkajsd;lfkjasd;klfjasdlkfj"
+  },
+  {
+    "id": 2,
+    "name": "test1.rptdesign",
+    "description": "another report about x",
+    "data": "0xabf7sd9sd7fbs8s7d7fb"
+  }
+]
