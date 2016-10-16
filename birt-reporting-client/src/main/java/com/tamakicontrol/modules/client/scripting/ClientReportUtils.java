@@ -1,8 +1,10 @@
 package com.tamakicontrol.modules.client.scripting;
 
 import com.inductiveautomation.ignition.client.gateway_interface.ModuleRPCFactory;
+import com.inductiveautomation.ignition.common.Dataset;
 import com.tamakicontrol.modules.scripting.AbstractReportUtils;
 import com.tamakicontrol.modules.scripting.ReportUtilProvider;
+import org.python.core.PyObject;
 
 import java.util.List;
 import java.util.Map;
@@ -34,8 +36,8 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
-    protected List<Object> getReportsImpl(boolean includeData){
-        return rpc.getReports(includeData);
+    protected Dataset getReportsImpl(){
+        return rpc.getReports();
     }
 
     @Override
@@ -49,13 +51,18 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
-    protected List<Map<String, Object>> getReportParametersImpl(long id){
+    protected Dataset getReportParametersImpl(long id){
         return rpc.getReportParameters(id);
     }
 
     @Override
-    protected List<Map<String, Object>>  getReportParametersImpl(String name){
+    protected Dataset getReportParametersImpl(String name){
         return rpc.getReportParameters(name);
+    }
+
+    @Override
+    protected byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords) {
+        return rpc.runAndRenderReport(objects, keywords);
     }
 
 }

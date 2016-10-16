@@ -1,18 +1,21 @@
 package com.tamakicontrol.modules.scripting;
 
+import com.inductiveautomation.ignition.common.BasicDataset;
+import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.common.script.builtin.PyArgumentMap;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
-import com.tamakicontrol.modules.BirtReport;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
-import org.eclipse.birt.report.engine.api.EngineException;
-import org.eclipse.birt.report.engine.api.IGetParameterDefinitionTask;
-import org.eclipse.birt.report.engine.api.IParameterDefnBase;
-import org.eclipse.birt.report.engine.api.IReportRunnable;
+import org.eclipse.birt.report.engine.api.*;
+import org.python.core.PyObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import simpleorm.dataset.SQuery;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+
 import java.util.*;
 
 public class GatewayReportUtils extends AbstractReportUtils{
@@ -44,6 +47,9 @@ public class GatewayReportUtils extends AbstractReportUtils{
         }
     }
 
+
+
+
     @Override
     protected byte[] getReportImpl(long id) {
         try {
@@ -59,27 +65,37 @@ public class GatewayReportUtils extends AbstractReportUtils{
         ReportRecord searchRecord = new ReportRecord();
         searchRecord.setName(name);
         gatewayContext.getPersistenceInterface().find(ReportRecord.META, searchRecord);
-        return searchRecord.getReportData();
+
+        SQuery<ReportRecord> query = new SQuery<ReportRecord>(ReportRecord.META)
+                .eq(ReportRecord.META.getField("name"), name);
+
+        return gatewayContext.getPersistenceInterface().queryOne(query).getReportData();
     }
 
     @Override
-    protected List<Object> getReportsImpl(boolean includeData) {
+    protected Dataset getReportsImpl() {
         SQuery<ReportRecord> query = new SQuery<ReportRecord>(ReportRecord.META);
 
         List<ReportRecord> results = gatewayContext.getPersistenceInterface().query(query);
         List<Object> resultsObject = new ArrayList<>();
 
-        results.forEach(record -> {
-            BirtReport report = new BirtReport(record.getId(), record.getName(), record.getDescription());
+        String[] names = {"Id", "Name", "Description"};
+        Class[] types = {Long.class, String.class, String.class};
+        Object[][] data = new Object[results.size()][3];
+        ReportRecord record;
 
-            if(includeData)
-                report.setReportData(record.getReportData());
+        for(int i=0; i < results.size(); i++){
+            record = results.get(i);
+            data[i][0] = record.getId();
+            data[i][1] = record.getName();
+            data[i][2] = record.getDescription();
+        }
 
-            resultsObject.add(report);
-        });
-
-        return resultsObject;
+        return new BasicDataset(Arrays.asList(names), Arrays.asList(types), data);
     }
+
+
+
 
     @Override
     protected boolean removeReportImpl(long id) {
@@ -91,43 +107,113 @@ public class GatewayReportUtils extends AbstractReportUtils{
         return false;
     }
 
-    @Override
-    protected List<Map<String, Object>> getReportParametersImpl(long id) {
 
+
+
+
+    @Override
+    protected Dataset getReportParametersImpl(long id) {
+        return getReportParametersFromDesign(getReport(id));
+    }
+
+    @Override
+    protected Dataset getReportParametersImpl(String name) {
+        return getReportParametersFromDesign(getReport(name));
+    }
+
+    private Dataset getReportParametersFromDesign(byte[] rptDesign){
         try {
             IReportRunnable report = GatewayHook.getReportEngine()
-                    .openReportDesign(new ByteArrayInputStream(getReport(id)));
+                    .openReportDesign(new ByteArrayInputStream(rptDesign));
 
             IGetParameterDefinitionTask task = GatewayHook.getReportEngine().createGetParameterDefinitionTask(report);
-            Collection params = task.getParameterDefns(true);
-            List<Map<String, Object>> reportParams = new ArrayList<>();
+            ArrayList<IParameterDefnBase> params = new ArrayList<>(task.getParameterDefns(true));
 
-            // TODO is there a simpler way of doing this?
-            reportParams.forEach(param -> {
-                IParameterDefnBase paramImpl = (IParameterDefnBase)param;
-                Map<String, Object> reportParam = new HashMap<String, Object>();
+            String[] names = {"name", "displayName", "helpText", "parameterType", "parameterType",
+                    "promptText", "typeName", "userProperties"};
 
-                reportParam.put("displayName", paramImpl.getDisplayName());
-                reportParam.put("name", paramImpl.getName());
-                reportParam.put("helpText", paramImpl.getHelpText());
-                reportParam.put("proptText", paramImpl.getPromptText());
-                reportParam.put("typeName", paramImpl.getTypeName());
-                reportParam.put("parameterType", paramImpl.getParameterType());
-                reportParam.put("userPropertyValues", paramImpl.getUserPropertyValues());
+            Class[] types = {String.class, String.class, String.class, Integer.class, String.class, String.class,
+                    String.class, String.class, Map.class};
 
-                reportParams.add(reportParam);
-            });
+            Object[][] data = new Object[params.size()][6];
 
-            return reportParams;
+            IParameterDefnBase param;
+            for(int i=0; i < params.size(); i++){
+                param = params.get(i);
+                data[i][0] = param.getName();
+                data[i][1] = param.getDisplayName();
+                data[i][2] = param.getHelpText();
+                data[i][3] = param.getParameterType();
+                data[i][4] = param.getPromptText();
+                data[i][5] = param.getTypeName();
+                data[i][6] = param.getUserPropertyValues();
+            }
 
+            return new BasicDataset(Arrays.asList(names), Arrays.asList(types), data);
         }catch(EngineException e){
-            logger.error(String.format("Engine exception while opening report with id %d", id), e);
+            logger.error("Engine exception while opening report", e);
         }
         return null;
     }
 
+
+
+
     @Override
-    protected List<Map<String, Object>> getReportParametersImpl(String name) {
+    protected byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords){
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        IRunAndRenderTask task = getRunAndRenderTask(PyArgumentMap.interpretPyArgs(objects, keywords, this.getClass(),
+                "runAndRenderReportImpl"), outputStream);
+
+        try {
+            task.run();
+        }catch (EngineException e){
+            logger.error("Engine exception while attempting to run & render report", e);
+        }catch(NullPointerException e) {
+            logger.error("Null pointer exception while attempting to run & render report", e);
+        }finally{
+            task.close();
+        }
+
+        return outputStream.toByteArray();
+    }
+
+    /*
+    *
+    * This method is abstracted so that it can return an output stream to a servlet,
+    * or an output stream to the runAndRenderReportImpl method which can then return
+    * a binary array to the client which can be rendered or save however they chose.
+    *
+    * */
+    public IRunAndRenderTask getRunAndRenderTask(Map args, OutputStream outputStream){
+
+        byte[] reportData = getReport((String)args.get("id"));
+
+        try{
+            IReportRunnable report = GatewayHook.getReportEngine().openReportDesign(new ByteArrayInputStream(reportData));
+            IRunAndRenderTask task = GatewayHook.getReportEngine().createRunAndRenderTask(report);
+            task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
+                    this.getClass().getClassLoader());
+
+
+            Map<String, Object> reportParams = (Map)args.get("parameters");
+            reportParams.forEach((key, value) -> {
+                    logger.trace(String.format("Key: %s, Value: %s", key, value));
+                    task.setParameterValue(key, value);
+            });
+
+
+            HTMLRenderOption options = new HTMLRenderOption();
+            options.setOutputFormat("html");
+            options.setOutputStream(outputStream);
+            options.setEmbeddable(false);
+            task.setRenderOption(options);
+
+            return task;
+        }catch(EngineException e){
+            logger.error("Exception while creating run & render task", e);
+        }
+
         return null;
     }
 

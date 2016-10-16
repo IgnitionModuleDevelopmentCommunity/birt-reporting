@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 public class ClientHook extends AbstractClientModuleHook {
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger = LoggerFactory.getLogger("birt-reporting");
 
     @Override
     public void startup(ClientContext context, LicenseState activationState) throws Exception {

@@ -1,37 +1,83 @@
 package com.tamakicontrol.modules.servlets;
 
-import com.inductiveautomation.ignition.gateway.model.GatewayContext;
+import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.common.script.builtin.DatasetUtilities;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
+import com.tamakicontrol.modules.scripting.GatewayReportUtils;
 import org.eclipse.birt.report.engine.api.*;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ReportServlet extends HttpServlet {
+public class ReportServlet extends BaseServlet {
 
     private static final Logger logger = LoggerFactory.getLogger("birt-reporting");
+    private GatewayReportUtils reportUtils;
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        getRenderReport(req, resp);
+    public void init() throws ServletException {
+        super.init();
+        reportUtils = new GatewayReportUtils(getContext());
+        router.put("/viewer", runAndRenderResource);
+        router.put("/api/parameters", getParametersResource);
     }
+
+    private ServletResource runAndRenderResource = new ServletResource() {
+
+        @Override
+        public String[] getAllowedMethods() {
+            return new String[] {"GET"};
+        }
+
+        @Override
+        public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+            resp.setContentType("text/html");
+            resp.setCharacterEncoding("UTF-8");
+
+            reportUtils.getRunAndRenderTask(getRequestParams(req.getQueryString()), resp.getOutputStream());
+        }
+
+        private IReportRunnable getReportFromDisk(String reportPath){
+            try{
+                return GatewayHook.getReportEngine().openReportDesign(reportPath);
+            }catch(EngineException e){
+                logger.error("Failed to open report", e);
+            }
+
+            return null;
+        }
+    };
+
+    private ServletResource getParametersResource = new ServletResource() {
+
+        @Override
+        public String[] getAllowedMethods() {
+            return new String[] {"GET"};
+        }
+
+        @Override
+        public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+            resp.setContentType("application/json");
+            resp.setCharacterEncoding("UTF-8");
+
+            Map<String, Object> requestParams = getRequestParams(req.getQueryString());
+            if(requestParams.get("report") == null){
+                resp.sendError(404, "null report");
+            }
+
+            Dataset reportParams = reportUtils.getReportParameters((Long)requestParams.get("reportid"));
+
+            resp.getWriter().write(DatasetUtilities.toJSONObject(reportParams).toString());
+        }
+    };
 
     private IReportRunnable getReportFromDisk(String reportPath){
         try{
@@ -54,44 +100,16 @@ public class ReportServlet extends HttpServlet {
         return null;
     }
 
-    protected Map<String, String> getRequestParams(String queryString){
-        Map<String, String> parameterMap = new HashMap<>();
-
-        if(queryString == null)
-            return null;
-
-        try {
-            String[] parameters = URLDecoder.decode(queryString, "UTF-8").split("&");
-            if(parameters.length > 0){
-                for(int i=0; i < parameters.length; i++){
-                    String[] keyValuePair = parameters[i].split("=");
-
-                    logger.trace(String.format("Key: %s, Value: %s", keyValuePair[0], keyValuePair[1]));
-                    parameterMap.put(keyValuePair[0], keyValuePair[1]);
-                }
-            }
-        }catch (UnsupportedEncodingException e){
-            logger.error("Unsupported Encoding", e);
-        }
-
-        return parameterMap;
-    }
-
-    private GatewayContext getContext() {
-        GatewayContext context = (GatewayContext)getServletContext().getAttribute(GatewayContext.SERVLET_CONTEXT_KEY);
-        return context;
-    }
-
     private void getRenderReport(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException{
         resp.setContentType("text/html");
         resp.setCharacterEncoding("UTF-8");
 
-        Map<String, String> requestParams = getRequestParams(req.getQueryString());
+        Map<String, Object> requestParams = getRequestParams(req.getQueryString());
         IReportRunnable report = null;
         if(requestParams.get("report") != null){
-            report = getReportFromDisk(requestParams.get("report"));
+            report = getReportFromDisk((String)requestParams.get("report"));
         }else if(requestParams.get("reportid") !=  null) {
-            report = getReportFromDB(Long.parseLong(requestParams.get("reportid")));
+            report = getReportFromDB(Long.parseLong((String)requestParams.get("reportid")));
         }else{
             resp.sendError(404, "null report");
         }
@@ -102,7 +120,7 @@ public class ReportServlet extends HttpServlet {
 
         }
 
-        IRunAndRenderTask task = GatewayHook.getReportEngine().createRunAndRenderTask(report);
+        IRunAndRenderTask task = reportUtils.getRunAndRenderTask(requestParams, resp.getOutputStream());
 
 
         task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
@@ -114,7 +132,6 @@ public class ReportServlet extends HttpServlet {
                 task.setParameterValue(key, value);
             }
         });
-
 
         HTMLRenderOption options = new HTMLRenderOption();
         options.setOutputFormat("html");
@@ -132,45 +149,5 @@ public class ReportServlet extends HttpServlet {
             task.close();
         }
     }
-
-    private void getReportParameters(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException{
-        resp.setContentType("application/json");
-        resp.setCharacterEncoding("UTF-8");
-
-        Map<String, String> requestParams = getRequestParams(req.getQueryString());
-        if(requestParams.get("report") == null){
-            resp.sendError(404, "null report");
-        }
-
-        IReportRunnable report = getReportFromDisk(requestParams.get("report"));
-
-        IGetParameterDefinitionTask task = GatewayHook.getReportEngine().createGetParameterDefinitionTask(report);
-
-        Collection params = task.getParameterDefns(true);
-
-        try {
-            JSONArray jsonArray = new JSONArray();
-            JSONObject reportParam;
-
-            Iterator iter = params.iterator();
-            while (iter.hasNext()) {
-                IParameterDefnBase param = (IParameterDefnBase) iter.next();
-                logger.info(String.format("Parameter %s", param.toString()));
-                reportParam = new JSONObject();
-                reportParam.put("displayName", param.getDisplayName());
-                reportParam.put("name", param.getName());
-                reportParam.put("helpText", param.getHelpText());
-                reportParam.put("proptText", param.getPromptText());
-                reportParam.put("typeName", param.getTypeName());
-                reportParam.put("parameterType", param.getParameterType());
-                reportParam.put("userPropertyValues", param.getUserPropertyValues());
-                jsonArray.put(reportParam);
-            }
-            resp.getWriter().write(jsonArray.toString());
-        }catch(JSONException e){
-            logger.error("JSON Exception when retrieving report parameters", e);
-        }
-    }
-
 
 }

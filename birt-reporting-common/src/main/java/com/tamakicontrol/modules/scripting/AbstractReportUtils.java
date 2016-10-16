@@ -1,7 +1,7 @@
 package com.tamakicontrol.modules.scripting;
 
-import java.util.List;
-import java.util.Map;
+import com.inductiveautomation.ignition.common.Dataset;
+import org.python.core.PyObject;
 
 public abstract class AbstractReportUtils implements ReportUtilProvider{
 
@@ -28,16 +28,18 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
     protected abstract byte[] getReportImpl(String name);
 
     @Override
-    public List<Object> getReports() {
-        return getReports(false);
+    public Dataset getReports() {
+        return getReportsImpl();
     }
+
+    protected abstract Dataset getReportsImpl();
 
     @Override
-    public List<Object> getReports(boolean includeData) {
-        return getReportsImpl(includeData);
+    public byte[] runAndRenderReport(PyObject[] objects, String[] keywords) {
+        return runAndRenderReportImpl(objects, keywords);
     }
 
-    protected abstract List<Object> getReportsImpl(boolean includeData);
+    protected abstract byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords);
 
     @Override
     public boolean removeReport(long id) {
@@ -54,17 +56,17 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
     protected abstract boolean removeReportImpl(String name);
 
     @Override
-    public List<Map<String, Object>> getReportParameters(long id) {
+    public Dataset getReportParameters(long id) {
         return getReportParametersImpl(id);
     }
 
-    protected abstract List<Map<String, Object>> getReportParametersImpl(long id);
+    protected abstract Dataset getReportParametersImpl(long id);
 
     @Override
-    public List<Map<String, Object>> getReportParameters(String name) {
+    public Dataset getReportParameters(String name) {
         return getReportParametersImpl(name);
     }
 
-    protected abstract List<Map<String, Object>>  getReportParametersImpl(String name);
+    protected abstract Dataset  getReportParametersImpl(String name);
 
 }
