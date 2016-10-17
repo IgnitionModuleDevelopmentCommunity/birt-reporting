@@ -2,8 +2,10 @@ package com.tamakicontrol.modules.client.scripting;
 
 import com.inductiveautomation.ignition.client.gateway_interface.ModuleRPCFactory;
 import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.common.script.builtin.PyArgumentMap;
 import com.tamakicontrol.modules.scripting.AbstractReportUtils;
 import com.tamakicontrol.modules.scripting.ReportUtilProvider;
+import org.python.core.PyDictionary;
 import org.python.core.PyObject;
 
 public class ClientReportUtils extends AbstractReportUtils{
@@ -43,6 +45,11 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
+    protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat, PyDictionary parameters, PyDictionary options) {
+        return rpc.runAndRenderReport(reportId, reportName, outputFormat, parameters, options);
+    }
+
+    @Override
     protected boolean removeReportImpl(long id){
         return rpc.removeReport(id);
     }
@@ -60,11 +67,6 @@ public class ClientReportUtils extends AbstractReportUtils{
     @Override
     protected Dataset getReportParametersImpl(String name){
         return rpc.getReportParameters(name);
-    }
-
-    @Override
-    protected byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords) {
-        return rpc.runAndRenderReport(objects, keywords);
     }
 
     @Override

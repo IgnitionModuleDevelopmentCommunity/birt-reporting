@@ -7,7 +7,10 @@ import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
 import org.eclipse.birt.report.engine.api.*;
-import org.python.core.PyObject;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.python.core.PyDictionary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import simpleorm.dataset.SQuery;
@@ -16,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 
+import java.security.InvalidParameterException;
 import java.util.*;
 
 public class GatewayReportUtils extends AbstractReportUtils{
@@ -65,7 +69,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
         searchRecord.setName(name);
         gatewayContext.getPersistenceInterface().find(ReportRecord.META, searchRecord);
 
-        SQuery<ReportRecord> query = new SQuery<ReportRecord>(ReportRecord.META)
+        SQuery<ReportRecord> query = new SQuery<>(ReportRecord.META)
                 .eq(ReportRecord.META.getField("name"), name);
 
         return gatewayContext.getPersistenceInterface().queryOne(query).getReportData();
@@ -86,6 +90,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
     //<editor-fold desc="getReports">
 
     @Override
+    @SuppressWarnings("unchecked")
     protected Dataset getReportsImpl() {
         List<ReportRecord> reports = getReportRecords();
 
@@ -112,7 +117,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
     }
 
     private List<ReportRecord> getReportRecords(){
-        SQuery<ReportRecord> query = new SQuery<ReportRecord>(ReportRecord.META);
+        SQuery<ReportRecord> query = new SQuery<>(ReportRecord.META);
         return gatewayContext.getPersistenceInterface().query(query);
     }
 
@@ -140,15 +145,15 @@ public class GatewayReportUtils extends AbstractReportUtils{
         return serializeParametersAsJSON(getReportParametersFromDesign(getReport(name)));
     }
 
+    @SuppressWarnings("unchecked")
     private List<IParameterDefnBase> getReportParametersFromDesign(byte[] rptDesign){
         try {
             IReportRunnable report = GatewayHook.getReportEngine()
                     .openReportDesign(new ByteArrayInputStream(rptDesign));
 
             IGetParameterDefinitionTask task = GatewayHook.getReportEngine().createGetParameterDefinitionTask(report);
-            ArrayList<IParameterDefnBase> params = new ArrayList<>(task.getParameterDefns(true));
 
-            return params;
+            return new ArrayList<>(task.getParameterDefns(true));
         }catch(EngineException e){
             logger.error("Engine exception while opening report", e);
         }
@@ -156,9 +161,36 @@ public class GatewayReportUtils extends AbstractReportUtils{
     }
 
     private String serializeParametersAsJSON(List<IParameterDefnBase> params){
-        Gson gson = new Gson();
-        gson.toJson(params);
-        return gson.toJson(params);
+        JSONArray jsonArray = new JSONArray();
+        JSONObject jsonObject;
+
+        try{
+            for(IParameterDefnBase param : params){
+
+                IScalarParameterDefn scalar = (IScalarParameterDefn)param;
+                jsonObject = new JSONObject();
+
+                jsonObject.put("name", param.getName());
+                jsonObject.put("displayName", param.getDisplayName());
+                jsonObject.put("defaultValue", scalar.getDefaultValue());
+                jsonObject.put("required", scalar);
+                jsonObject.put("dataType", scalar.getDataType());
+                jsonObject.put("promptText", param.getPromptText());
+                jsonObject.put("helpText", param.getHelpText());
+                jsonObject.put("parameterType", param.getParameterType());
+                jsonObject.put("typeName", param.getTypeName());
+                jsonObject.put("userProperties", param.getUserPropertyValues());
+                jsonObject.put("controlType", scalar.getControlType());
+                jsonObject.put("selectionListType", scalar.getSelectionListType());
+                jsonObject.put("selectionList", scalar.getSelectionList());
+
+                jsonArray.put(jsonObject);
+            }
+        }catch (JSONException e){
+            logger.error("Error serializing parameter structure", e);
+        }
+
+        return jsonArray.toString();
     }
 
     private Dataset serializeParametersAsDataset(List<IParameterDefnBase> params){
@@ -189,53 +221,51 @@ public class GatewayReportUtils extends AbstractReportUtils{
     //<editor-fold desc="runAndRenderReport">
 
     @Override
-    protected byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords) {
+    @SuppressWarnings("unchecked")
+    protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat, PyDictionary parameters, PyDictionary options) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        HashMap<String, Object> args = new HashMap<>();
-
-        for(int i=0; i < objects.length; i++){
-            args.put(keywords[i], (Object)objects[i]);
-        }
-
-//        runAndRenderToStream(PyArgumentMap.interpretPyArgs(objects, keywords, this.getClass(),
-//                "runAndRenderReport"), outputStream);
-
-        runAndRenderToStream(args, outputStream);
-
+        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
         return outputStream.toByteArray();
     }
 
     /*
-    *
-    * This method is abstracted so that it can return an output stream to a servlet,
-    * or an output stream to the runAndRenderReportImpl method which can then return
-    * a binary array to the client which can be rendered or save however they chose.
-    *
-    *
-    * Arguments:
-    *   reportId
-    *   reportName
-    *   parameters
-    *   outputFormat
-    *   options
-    *
-    * */
-    public String runAndRenderToStream(Map args, OutputStream outputStream){
+        *
+        * This method is abstracted so that it can return an output stream to a servlet,
+        * or an output stream to the runAndRenderReportImpl method which can then return
+        * a binary array to the client which can be rendered or save however they chose.
+        *
+        *
+        * Arguments:
+        *   reportId
+        *   reportName
+        *   parameters
+        *   outputFormat
+        *   options
+        *
+        * */
+    @SuppressWarnings("unchecked")
+    public void runAndRenderToStream(Map args, OutputStream outputStream){
 
-        // Read in report data from either ID or Name
-        byte[] reportData = null;
-        if(args.get("reportId") != null)
-            try {
-                reportData = getReport(Long.parseLong((String) args.get("reportId")));
-            }catch(NumberFormatException e){
-                logger.warn("Parsing reportId from request failed", e);
-            }
-        else if(args.get("reportName") != null)
-            reportData = getReport((String)args.get("reportName"));
-        else {
-            logger.warn("Request for report did not specify id or name");
-            return null;
+        Long reportId = Long.parseLong((String)args.get("reportId"));
+        String reportName = (String)args.get("reportName");
+        String outputFormat = (String)args.get("outputFormat");
+        Map<String, Object> parameters = (Map)args.get("parameters");
+        Map<String, Object> options = (Map)args.get("options");
+
+        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
+                                     Map<String, Object> parameters, Map<String, Object> options, OutputStream outputStream){
+
+        byte[] reportData;
+        if(reportId != null){
+            reportData = getReport(reportId);
+        }else if(reportName != null){
+            reportData = getReport(reportName);
+        }else{
+            throw new InvalidParameterException("Must specify either report id or name");
         }
 
         try{
@@ -248,39 +278,51 @@ public class GatewayReportUtils extends AbstractReportUtils{
                     this.getClass().getClassLoader());
 
             // if parameters are specified, pass them into the task
-            if(args.get("parameters") != null) {
-                HashMap<String, Object> reportParams = (HashMap) args.get("parameters");
-                reportParams.forEach((key, value) -> {
+            if(parameters != null) {
+                parameters.forEach((key, value) -> {
                     logger.trace(String.format("Report Parameters Key: %s, Value: %s", key, value));
                     task.setParameterValue(key, value);
                 });
             }
 
-            RenderOption options = new RenderOption();
-            options.setOutputFormat((String)args.getOrDefault("outputFormat", "html"));
+            RenderOption renderOptions = new RenderOption();
 
-            if(options.getOutputFormat().equalsIgnoreCase("html")){
-                HTMLRenderOption htmlRenderOption = new HTMLRenderOption(options);
-                htmlRenderOption.setEmbeddable(true);
-            }else if(options.getOutputFormat().equalsIgnoreCase("pdf")){
-                PDFRenderOption pdfRenderOption = new PDFRenderOption(options);
-            }else if(options.getOutputFormat().equalsIgnoreCase("xls")){
-                EXCELRenderOption excelRenderOption = new EXCELRenderOption(options);
-                excelRenderOption.setEnableMultipleSheet(false);
-            }else if(options.getOutputFormat().equalsIgnoreCase("doc")){
+            if(outputFormat == null)
+                outputFormat = "html";
+            renderOptions.setOutputFormat(outputFormat);
+
+
+            /*
+            *
+            * Build rendering options for report
+            *
+            * */
+            if(options == null)
+                options = new HashMap<>();
+
+            if(renderOptions.getOutputFormat().equalsIgnoreCase("html")){
+                HTMLRenderOption htmlRenderOption = new HTMLRenderOption(renderOptions);
+                htmlRenderOption.setEmbeddable((boolean)options.getOrDefault("embeddable", false));
+            }else if(renderOptions.getOutputFormat().equalsIgnoreCase("pdf")){
+                PDFRenderOption pdfRenderOption = new PDFRenderOption(renderOptions);
+                pdfRenderOption.setEmbededFont((boolean)options.getOrDefault("embedFont", true));
+            }else if(renderOptions.getOutputFormat().equalsIgnoreCase("xls")){
+                EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOptions);
+                excelRenderOption.setEnableMultipleSheet((boolean)options.getOrDefault("enableMultipleSheets", false));
+                excelRenderOption.setHideGridlines((boolean)options.getOrDefault("disableGridLines", false));
+                excelRenderOption.setWrappingText((boolean)options.getOrDefault("wrapText", false));
+
+                //TODO what strings are available for office versions?
+                //excelRenderOption.setOfficeVersion();
+            }else if(renderOptions.getOutputFormat().equalsIgnoreCase("doc")){
+                //TODO find word rendering options
+                assert true;
             }else{
-                options.setOutputFormat("html");
+                renderOptions.setOutputFormat("html");
             }
 
-            // todo add other relevant options.  Embedible, pdf etc
-            // if options other than the defaults are specified, pass them into the task
-            if(args.get("options") != null) {
-                HashMap<String, Object> reportOptions = (HashMap) args.get("options");
-                options.setOutputFormat((String)reportOptions.getOrDefault("outputFormat", "html"));
-            }
-
-            options.setOutputStream(outputStream);
-            task.setRenderOption(options);
+            renderOptions.setOutputStream(outputStream);
+            task.setRenderOption(renderOptions);
 
             try {
                 task.run();
@@ -290,15 +332,12 @@ public class GatewayReportUtils extends AbstractReportUtils{
                 logger.error("Null pointer exception while attempting to run & render report", e);
             }finally{
                 task.close();
-
             }
 
-            return options.getOutputFormat();
         }catch(EngineException e){
             logger.error("Exception while creating run & render task", e);
         }
 
-        return null;
     }
 
     //</editor-fold>

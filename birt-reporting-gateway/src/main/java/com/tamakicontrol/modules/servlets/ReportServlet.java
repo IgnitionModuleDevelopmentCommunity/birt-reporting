@@ -63,16 +63,16 @@ public class ReportServlet extends BaseServlet {
         public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
             resp.setCharacterEncoding("UTF-8");
 
-            String outputFormat = reportUtils.runAndRenderToStream(getRequestParams(req.getQueryString()), resp.getOutputStream());
+            reportUtils.runAndRenderToStream(getRequestParams(req.getQueryString()), resp.getOutputStream());
 
-            if(outputFormat.equalsIgnoreCase("html"))
-                resp.setContentType("text/html");
-            else if(outputFormat.equalsIgnoreCase("pdf"))
-                resp.setContentType("text/pdf");
-            else if(outputFormat.equalsIgnoreCase("xls"))
-                resp.setContentType("Report.xls");
-            else if(outputFormat.equalsIgnoreCase("doc"))
-                resp.setContentType("Report.doc");
+//            if(outputFormat.equalsIgnoreCase("html"))
+//                resp.setContentType("text/html");
+//            else if(outputFormat.equalsIgnoreCase("pdf"))
+//                resp.setContentType("text/pdf");
+//            else if(outputFormat.equalsIgnoreCase("xls"))
+//                resp.setContentType("Report.xls");
+//            else if(outputFormat.equalsIgnoreCase("doc"))
+//                resp.setContentType("Report.doc");
         }
 
     };

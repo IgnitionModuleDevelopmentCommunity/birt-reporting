@@ -1,6 +1,7 @@
 package com.tamakicontrol.modules.scripting;
 
 import com.inductiveautomation.ignition.common.Dataset;
+import org.python.core.PyDictionary;
 import org.python.core.PyObject;
 
 public interface ReportUtilProvider {
@@ -14,6 +15,9 @@ public interface ReportUtilProvider {
     public byte[] getReport(String name);
 
     public byte[] runAndRenderReport(PyObject[] objects, String[] keywords);
+
+    public byte[] runAndRenderReport(long reportId, String reportName, String outputFormat,
+                                     PyDictionary parameters, PyDictionary options);
 
     public long saveReport(long id, String name, String description, byte[] reportData);
 
