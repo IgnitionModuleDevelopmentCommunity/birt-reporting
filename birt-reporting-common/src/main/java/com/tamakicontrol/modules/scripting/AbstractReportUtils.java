@@ -1,11 +1,15 @@
 package com.tamakicontrol.modules.scripting;
 
 import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.common.script.builtin.PyArgumentMap;
+import com.inductiveautomation.ignition.common.script.hints.ScriptArg;
+import com.inductiveautomation.ignition.common.script.hints.ScriptFunction;
 import org.python.core.PyObject;
 
 public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
     public long saveReport(long id, String name, String description, byte[] reportData) {
         return saveReportImpl(id, name, description, reportData);
     }
@@ -13,14 +17,16 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
     protected abstract long saveReportImpl(long id, String name, String description, byte[] reportData);
 
     @Override
-    public byte[] getReport(long id) {
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public byte[] getReport(@ScriptArg("id") long id) {
         return getReportImpl(id);
     }
 
     protected abstract byte[] getReportImpl(long id);
 
     @Override
-    public byte[] getReport(String name) {
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public byte[] getReport(@ScriptArg("name") String name) {
 
         return getReportImpl(name);
     }
@@ -28,45 +34,76 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
     protected abstract byte[] getReportImpl(String name);
 
     @Override
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
     public Dataset getReports() {
         return getReportsImpl();
     }
 
+
     protected abstract Dataset getReportsImpl();
 
     @Override
-    public byte[] runAndRenderReport(PyObject[] objects, String[] keywords) {
-        return runAndRenderReportImpl(objects, keywords);
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public String getReportsAsJSON() {
+        return getReportsAsJSONImpl();
     }
 
-    protected abstract byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords);
+    protected abstract String getReportsAsJSONImpl();
 
     @Override
-    public boolean removeReport(long id) {
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public byte[] runAndRenderReport(PyObject[] objects, String[] keywords) {
+        PyArgumentMap.interpretPyArgs(objects, keywords, this.getClass(), "runAndRenderReport");
+        return null;
+    }
+
+    protected abstract byte[] runAndRenderReportImpl();
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public boolean removeReport(@ScriptArg("id") long id) {
         return removeReportImpl(id);
     }
 
     protected abstract boolean removeReportImpl(long id);
 
     @Override
-    public boolean removeReport(String name) {
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public boolean removeReport(@ScriptArg("name") String name) {
         return removeReportImpl(name);
     }
 
     protected abstract boolean removeReportImpl(String name);
 
     @Override
-    public Dataset getReportParameters(long id) {
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public Dataset getReportParameters(@ScriptArg("id") long id) {
         return getReportParametersImpl(id);
     }
 
     protected abstract Dataset getReportParametersImpl(long id);
 
     @Override
-    public Dataset getReportParameters(String name) {
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public Dataset getReportParameters(@ScriptArg("name") String name) {
         return getReportParametersImpl(name);
     }
 
     protected abstract Dataset  getReportParametersImpl(String name);
 
+    @Override
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public String getReportParametersAsJSON(@ScriptArg("id") long id) {
+        return getReportParametersAsJSONImpl(id);
+    }
+
+    protected abstract String getReportParametersAsJSONImpl(@ScriptArg("id") long id);
+
+    @Override
+    @ScriptFunction(docBundlePrefix = "ReportUtils")
+    public String getReportParametersAsJSON(@ScriptArg("name") String name) {
+        return getReportParametersAsJSONImpl(name);
+    }
+
+    protected abstract String getReportParametersAsJSONImpl(String name);
 }

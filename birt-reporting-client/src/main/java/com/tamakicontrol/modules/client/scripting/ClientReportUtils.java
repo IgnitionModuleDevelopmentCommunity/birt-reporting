@@ -6,9 +6,6 @@ import com.tamakicontrol.modules.scripting.AbstractReportUtils;
 import com.tamakicontrol.modules.scripting.ReportUtilProvider;
 import org.python.core.PyObject;
 
-import java.util.List;
-import java.util.Map;
-
 public class ClientReportUtils extends AbstractReportUtils{
 
     private final ReportUtilProvider rpc;
@@ -41,6 +38,11 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
+    protected String getReportsAsJSONImpl() {
+        return rpc.getReportsAsJSON();
+    }
+
+    @Override
     protected boolean removeReportImpl(long id){
         return rpc.removeReport(id);
     }
@@ -63,6 +65,16 @@ public class ClientReportUtils extends AbstractReportUtils{
     @Override
     protected byte[] runAndRenderReportImpl(PyObject[] objects, String[] keywords) {
         return rpc.runAndRenderReport(objects, keywords);
+    }
+
+    @Override
+    protected String getReportParametersAsJSONImpl(long id) {
+        return rpc.getReportParametersAsJSON(id);
+    }
+
+    @Override
+    protected String getReportParametersAsJSONImpl(String name) {
+        return rpc.getReportParametersAsJSON(name);
     }
 
 }

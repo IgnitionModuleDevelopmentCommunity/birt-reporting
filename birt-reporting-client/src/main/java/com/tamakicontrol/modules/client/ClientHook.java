@@ -6,7 +6,6 @@ import com.inductiveautomation.ignition.common.script.ScriptManager;
 import com.inductiveautomation.ignition.common.script.hints.PropertiesFileDocProvider;
 import com.inductiveautomation.vision.api.client.AbstractClientModuleHook;
 import com.tamakicontrol.modules.client.scripting.ClientReportUtils;
-import com.tamakicontrol.modules.scripting.ReportUtilProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

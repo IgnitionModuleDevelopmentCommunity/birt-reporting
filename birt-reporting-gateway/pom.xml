@@ -44,6 +44,14 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.7</version>
+        </dependency>
+
+        <!-- JDBC Drivers -->
+        <!-- TODO FIND A WAY TO USE IGNITIONS JDBC DRIVERS -->
+        <dependency>
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
             <version>1.5.3</version>

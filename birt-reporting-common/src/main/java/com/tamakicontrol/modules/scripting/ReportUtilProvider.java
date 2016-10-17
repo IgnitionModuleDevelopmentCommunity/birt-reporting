@@ -1,15 +1,13 @@
 package com.tamakicontrol.modules.scripting;
 
 import com.inductiveautomation.ignition.common.Dataset;
-import com.inductiveautomation.ignition.common.script.builtin.PyArgumentMap;
 import org.python.core.PyObject;
-
-import java.util.List;
-import java.util.Map;
 
 public interface ReportUtilProvider {
 
     public Dataset getReports();
+
+    public String getReportsAsJSON();
 
     public byte[] getReport(long id);
 
@@ -26,5 +24,9 @@ public interface ReportUtilProvider {
     public Dataset getReportParameters(long id);
 
     public Dataset getReportParameters(String name);
+
+    public String getReportParametersAsJSON(long id);
+
+    public String getReportParametersAsJSON(String name);
 
 }

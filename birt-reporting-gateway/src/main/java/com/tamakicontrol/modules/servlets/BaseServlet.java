@@ -15,34 +15,40 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+
+/*
+* Base Servlet
+*
+* Adds routing and utility methods to our servlet classes.  All servlet methods (doGet, doPost etc.) will be passed
+* to a doRequest method which will route the request to the appropriate resource (implemented as a java interface).
+*
+* */
 public class BaseServlet extends HttpServlet {
+
+    public static final String URI_BASE = "/main/system/birt-reporting";
 
     protected static final Logger logger = LoggerFactory.getLogger("birt-reporting");
 
     protected HashMap<String, ServletResource> router = new HashMap<>();
 
-    protected ServletResource resource404 = new ServletResource() {
-        @Override
-        public String[] getAllowedMethods() {
-            String[] allowedMethods = {"GET"};
-            return allowedMethods;
-        }
-
-        @Override
-        public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-            resp.sendError(404);
-        }
-    };
-
     protected void doRequest(String requestType, HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException{
-        logger.debug(String.format("Request: [%s]", requestType), req.getRequestURI());
+        logger.debug(String.format("Request: [%s] %s", requestType, req.getRequestURI()));
 
-        ServletResource resource = router.getOrDefault(req.getRequestURI(), resource404);
-        if(Arrays.asList(resource.getAllowedMethods()).contains(requestType))
-            resource.doRequest(req, resp);
-        else
-            resp.sendError(405);
+        for(String route : router.keySet()){
+
+            if(req.getRequestURI().matches(URI_BASE + route)){
+                if(Arrays.asList(router.get(route).getAllowedMethods()).contains(requestType)) {
+                    router.get(route).doRequest(req, resp);
+                    return;
+                }else{
+                    resp.sendError(405);
+                    return;
+                }
+            }
+        }
+
+        resp.sendError(404);
     }
 
     @Override

@@ -20,6 +20,7 @@ import org.eclipse.core.internal.registry.RegistryProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.logging.Level;
 
@@ -55,7 +56,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             logger.error("Error while starting Birt Platform", e);
         }
 
-        gatewayContext.addServlet("report-viewer", ReportServlet.class);
+        gatewayContext.addServlet("birt-reporting", ReportServlet.class);
 
     }
 
@@ -78,11 +79,12 @@ public class GatewayHook extends AbstractGatewayModuleHook {
             logger.error("Failed to shutdown BIRT engine", e);
         }
 
-        gatewayContext.removeServlet("report-viewer");
+        gatewayContext.removeServlet("birt-reporting");
     }
 
     @Override
     public void initializeScriptManager(ScriptManager manager) {
+
         super.initializeScriptManager(manager);
         manager.addScriptModule("system.report", new GatewayReportUtils(gatewayContext), new PropertiesFileDocProvider());
     }
@@ -102,6 +104,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     public static IReportEngine getReportEngine(){
         return engine;
+    }
+
+    public static InputStream getStaticResource(String filePath){
+        return GatewayHook.class.getResourceAsStream(filePath);
     }
 
 }
