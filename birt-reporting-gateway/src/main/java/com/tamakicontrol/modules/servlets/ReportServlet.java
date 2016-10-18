@@ -102,7 +102,7 @@ public class ReportServlet extends BaseServlet {
             resp.setCharacterEncoding("UTF-8");
 
             Map<String, Object> requestParams = getRequestParams(req.getQueryString());
-            Dataset reportParams = null;
+            String reportParams = null;
 
             if(requestParams.get("reportId") != null) {
                 try {
@@ -119,7 +119,7 @@ public class ReportServlet extends BaseServlet {
             }
 
             if(reportParams != null)
-                resp.getWriter().print(DatasetUtilities.toJSONObject(reportParams).toString());
+                resp.getWriter().print(reportParams);
             else
                 resp.sendError(400);
         }

@@ -35,6 +35,16 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
+    protected boolean reportExistsImpl(long id) {
+        return rpc.reportExists(id);
+    }
+
+    @Override
+    protected boolean reportExistsImpl(String name) {
+        return rpc.reportExists(name);
+    }
+
+    @Override
     protected Dataset getReportsImpl(){
         return rpc.getReports();
     }
@@ -60,23 +70,14 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
-    protected Dataset getReportParametersImpl(long id){
+    protected String getReportParametersImpl(long id){
         return rpc.getReportParameters(id);
     }
 
     @Override
-    protected Dataset getReportParametersImpl(String name){
+    protected String getReportParametersImpl(String name){
         return rpc.getReportParameters(name);
     }
 
-    @Override
-    protected String getReportParametersAsJSONImpl(long id) {
-        return rpc.getReportParametersAsJSON(id);
-    }
-
-    @Override
-    protected String getReportParametersAsJSONImpl(String name) {
-        return rpc.getReportParametersAsJSON(name);
-    }
 
 }

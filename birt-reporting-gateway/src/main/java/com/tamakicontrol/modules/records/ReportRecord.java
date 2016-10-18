@@ -15,6 +15,18 @@ public class ReportRecord extends PersistentRecord {
     public static final StringField Description = new StringField(META, "Description");
     public static final BlobField ReportData = new BlobField(META, "ReportData");
 
+    // nop constructor
+    public ReportRecord(){
+        super();
+    }
+
+    public ReportRecord(long id, String name, String description, byte[] reportData){
+        super();
+        setId(id);
+        setName(name);
+        setDescription(description);
+        setReportData(reportData);
+    }
 
     public long getId(){
         return getLong(Id);

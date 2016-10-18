@@ -3,10 +3,12 @@ package com.tamakicontrol.modules.scripting;
 import com.google.gson.Gson;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceSession;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
 import org.eclipse.birt.report.engine.api.*;
+import org.eclipse.birt.report.engine.ir.Report;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,55 +37,113 @@ public class GatewayReportUtils extends AbstractReportUtils{
     //<editor-fold desc="CRUD">
     @Override
     protected long saveReportImpl(long id, String name, String description, byte[] reportData) {
-        try {
-            ReportRecord reportRecord = gatewayContext.getPersistenceInterface().createNew(ReportRecord.META);
+        if(reportExists(id) || reportExists(name) && id > 0)
+            return updateReport(id, name, description, reportData);
+        else
+            return addReport(name, description, reportData);
+    }
 
-            reportRecord.setId(id);
-            reportRecord.setName(name);
-            reportRecord.setDescription(description);
-            reportRecord.setReportData(reportData);
+    private long addReport(String name, String description, byte[] reportData){
 
-            gatewayContext.getSchemaUpdater().ensureRecordExists(reportRecord);
+        ReportRecord reportRecord = gatewayContext.getPersistenceInterface().createNew(ReportRecord.META);
+        reportRecord.setName(name);
+        reportRecord.setDescription(description);
+        reportRecord.setReportData(reportData);
+        gatewayContext.getPersistenceInterface().save(reportRecord);
 
-            return reportRecord.getId();
-        }catch (Exception e){
-            logger.error("Exception while saving report", e);
-            return -1L;
-        }
+        return reportRecord.getId();
+    }
+
+    private long updateReport(long id, String name, String description, byte[] reportData){
+        ReportRecord reportRecord = gatewayContext.getPersistenceInterface().find(ReportRecord.META, id);
+
+        reportRecord.setId(id);
+        reportRecord.setName(name);
+        reportRecord.setDescription(description);
+        reportRecord.setReportData(reportData);
+        gatewayContext.getPersistenceInterface().save(reportRecord);
+
+        return reportRecord.getId();
     }
 
     @Override
     protected byte[] getReportImpl(long id) {
         try {
-            return gatewayContext.getPersistenceInterface().find(ReportRecord.META, id).getReportData();
-        }catch(NullPointerException e){
-            logger.error(String.format("Application threw null pointer when searching for report id %d", id), e);
-            return null;
+            ReportRecord reportRecord = gatewayContext.getPersistenceInterface().find(ReportRecord.META, id);
+            if(reportRecord != null)
+                return reportRecord.getReportData();
+            else
+                return null;
+
+        }catch(NullPointerException e1){
+            logger.debug(String.format("Report id '%d' not found", id), e1);
         }
+
+        return null;
     }
 
-    //TODO getReportImpl(String) doesn't work
     @Override
     protected byte[] getReportImpl(String name) {
-        ReportRecord searchRecord = new ReportRecord();
-        searchRecord.setName(name);
-        gatewayContext.getPersistenceInterface().find(ReportRecord.META, searchRecord);
-
         SQuery<ReportRecord> query = new SQuery<>(ReportRecord.META)
                 .eq(ReportRecord.META.getField("name"), name);
 
-        return gatewayContext.getPersistenceInterface().queryOne(query).getReportData();
+        try {
+            ReportRecord reportRecord = gatewayContext.getPersistenceInterface().queryOne(query);
+            if(reportRecord != null)
+                return reportRecord.getReportData();
+            else
+                return null;
+
+        }catch(NullPointerException e1){
+            logger.debug(String.format("Report '%s' not found", name), e1);
+        }
+
+        return null;
     }
 
-    //TODO Impement removeReport
+    @Override
+    protected boolean reportExistsImpl(long id) {
+        return getReport(id) !=  null;
+    }
+
+    @Override
+    protected boolean reportExistsImpl(String name) {
+        return getReport(name) != null;
+    }
+
     @Override
     protected boolean removeReportImpl(long id) {
-        return false;
+
+        PersistenceSession session = gatewayContext.getPersistenceInterface().getSession();
+        ReportRecord reportRecord = session.find(ReportRecord.META, id);
+
+        if(reportRecord != null) {
+            reportRecord.deleteRecord();
+            session.commit();
+            session.close();
+            return true;
+        }else
+            session.close();
+            return false;
     }
 
     @Override
     protected boolean removeReportImpl(String name) {
-        return false;
+        SQuery<ReportRecord> query = new SQuery<>(ReportRecord.META)
+                .eq(ReportRecord.META.getField("name"), name);
+
+        PersistenceSession session = gatewayContext.getPersistenceInterface().getSession();
+        ReportRecord reportRecord = session.queryOne(query);
+
+        if(reportRecord != null) {
+            reportRecord.deleteRecord();
+            session.commit();
+            session.close();
+            return true;
+        }else
+            session.close();
+            return false;
+
     }
     //</editor-fold>
 
@@ -96,14 +156,14 @@ public class GatewayReportUtils extends AbstractReportUtils{
 
         String[] names = {"Id", "Name", "Description"};
         Class[] types = {Long.class, String.class, String.class};
-        Object[][] data = new Object[reports.size()][3];
+        Object[][] data = new Object[3][reports.size()];
         ReportRecord record;
 
-        for(int i=0; i < reports.size(); i++){
+        for(int i=0; i < reports.size(); i++) {
             record = reports.get(i);
-            data[i][0] = record.getId();
-            data[i][1] = record.getName();
-            data[i][2] = record.getDescription();
+            data[0][i] = record.getId();
+            data[1][i] = record.getName();
+            data[2][i] = record.getDescription();
         }
 
         return new BasicDataset(Arrays.asList(names), Arrays.asList(types), data);
@@ -112,11 +172,26 @@ public class GatewayReportUtils extends AbstractReportUtils{
     @Override
     protected String getReportsAsJSONImpl() {
         List<ReportRecord> reports = getReportRecords();
-        Gson gson = new Gson();
-        return gson.toJson(reports);
+        JSONArray jsonArray = new JSONArray();
+        JSONObject jsonObject;
+
+        try {
+            for (ReportRecord report : reports) {
+                jsonObject = new JSONObject();
+                jsonObject.put("reportId", report.getId());
+                jsonObject.put("reportName", report.getName());
+                jsonObject.put("description", report.getDescription());
+
+                jsonArray.put(jsonObject);
+            }
+        }catch (JSONException e){
+            logger.error("JSON exception while serializing reports", e);
+        }
+
+        return jsonArray.toString();
     }
 
-    private List<ReportRecord> getReportRecords(){
+    public List<ReportRecord> getReportRecords(){
         SQuery<ReportRecord> query = new SQuery<>(ReportRecord.META);
         return gatewayContext.getPersistenceInterface().query(query);
     }
@@ -126,63 +201,79 @@ public class GatewayReportUtils extends AbstractReportUtils{
     // <editor-fold desc="getReportParameters">
 
     @Override
-    protected Dataset getReportParametersImpl(long id) {
-        return serializeParametersAsDataset(getReportParametersFromDesign(getReport(id)));
+    protected String getReportParametersImpl(long id) {
+        return serializeReportParameters(getReport(id));
     }
 
     @Override
-    protected Dataset getReportParametersImpl(String name) {
-        return serializeParametersAsDataset(getReportParametersFromDesign(getReport(name)));
-    }
-
-    @Override
-    protected String getReportParametersAsJSONImpl(long id) {
-        return serializeParametersAsJSON(getReportParametersFromDesign(getReport(id)));
-    }
-
-    @Override
-    protected String getReportParametersAsJSONImpl(String name) {
-        return serializeParametersAsJSON(getReportParametersFromDesign(getReport(name)));
+    protected String getReportParametersImpl(String name) {
+        return serializeReportParameters(getReport(name));
     }
 
     @SuppressWarnings("unchecked")
-    private List<IParameterDefnBase> getReportParametersFromDesign(byte[] rptDesign){
+    private String serializeReportParameters(byte[] reportData) {
+
+        ArrayList<IParameterDefnBase> params = null;
+        IGetParameterDefinitionTask task = null;
         try {
             IReportRunnable report = GatewayHook.getReportEngine()
-                    .openReportDesign(new ByteArrayInputStream(rptDesign));
+                    .openReportDesign(new ByteArrayInputStream(reportData));
 
-            IGetParameterDefinitionTask task = GatewayHook.getReportEngine().createGetParameterDefinitionTask(report);
-
-            return new ArrayList<>(task.getParameterDefns(true));
+            task = GatewayHook.getReportEngine().createGetParameterDefinitionTask(report);
+            params = (ArrayList)task.getParameterDefns(true);
         }catch(EngineException e){
             logger.error("Engine exception while opening report", e);
         }
-        return null;
-    }
 
-    private String serializeParametersAsJSON(List<IParameterDefnBase> params){
         JSONArray jsonArray = new JSONArray();
         JSONObject jsonObject;
 
         try{
             for(IParameterDefnBase param : params){
-
-                IScalarParameterDefn scalar = (IScalarParameterDefn)param;
                 jsonObject = new JSONObject();
 
-                jsonObject.put("name", param.getName());
-                jsonObject.put("displayName", param.getDisplayName());
-                jsonObject.put("defaultValue", scalar.getDefaultValue());
-                jsonObject.put("required", scalar);
-                jsonObject.put("dataType", scalar.getDataType());
-                jsonObject.put("promptText", param.getPromptText());
-                jsonObject.put("helpText", param.getHelpText());
-                jsonObject.put("parameterType", param.getParameterType());
-                jsonObject.put("typeName", param.getTypeName());
-                jsonObject.put("userProperties", param.getUserPropertyValues());
-                jsonObject.put("controlType", scalar.getControlType());
-                jsonObject.put("selectionListType", scalar.getSelectionListType());
-                jsonObject.put("selectionList", scalar.getSelectionList());
+                //TODO add support for parameter groups
+                if(param instanceof IParameterGroupDefn){
+                    IParameterGroupDefn group = (IParameterGroupDefn)param;
+                    ArrayList<IParameterDefnBase> groupParams = group.getContents();
+
+                    groupParams.forEach(groupParam -> {
+                        groupParam.getName();
+                        groupParam.getDisplayName();
+                    });
+
+                }
+                else{
+                    IScalarParameterDefn scalar = (IScalarParameterDefn)param;
+
+                    jsonObject.put("name", scalar.getName());
+                    jsonObject.put("displayName", scalar.getDisplayName());
+                    jsonObject.put("defaultValue", scalar.getDefaultValue());
+                    jsonObject.put("required", scalar.isRequired());
+                    jsonObject.put("hidden", scalar.isHidden());
+                    jsonObject.put("dataType", scalar.getDataType());
+                    jsonObject.put("promptText", scalar.getPromptText());
+                    jsonObject.put("helpText", scalar.getHelpText());
+                    jsonObject.put("parameterType", scalar.getParameterType());
+                    jsonObject.put("typeName", scalar.getTypeName());
+                    jsonObject.put("userProperties", scalar.getUserPropertyValues());
+                    jsonObject.put("controlType", scalar.getControlType());
+
+                    if(scalar.getControlType() == IScalarParameterDefn.LIST_BOX){
+                        ArrayList<IParameterSelectionChoice> selectionList = (ArrayList)task.getSelectionList(scalar.getName());
+                        HashMap<String, Object>selections = new HashMap<>();
+
+                        if(selectionList != null)
+                            selectionList.forEach(selection -> {
+                                selections.put(selection.getLabel(), selection.getValue());
+                            });
+
+                        jsonObject.put("selectionListType", scalar.getSelectionListType());
+                        jsonObject.put("selectionList", selections);
+                    }
+
+
+                }
 
                 jsonArray.put(jsonObject);
             }
@@ -193,6 +284,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
         return jsonArray.toString();
     }
 
+    //TODO Should we have a dataset return option?
     private Dataset serializeParametersAsDataset(List<IParameterDefnBase> params){
         String[] names = {"name", "displayName", "helpText", "parameterType",
                 "promptText", "typeName"};
@@ -268,6 +360,10 @@ public class GatewayReportUtils extends AbstractReportUtils{
             throw new InvalidParameterException("Must specify either report id or name");
         }
 
+        if(reportData == null)
+            throw new InvalidParameterException("Invalid report id or name");
+
+
         try{
             IReportRunnable report = GatewayHook.getReportEngine()
                     .openReportDesign(new ByteArrayInputStream(reportData));
@@ -311,7 +407,6 @@ public class GatewayReportUtils extends AbstractReportUtils{
                 excelRenderOption.setEnableMultipleSheet((boolean)options.getOrDefault("enableMultipleSheets", false));
                 excelRenderOption.setHideGridlines((boolean)options.getOrDefault("disableGridLines", false));
                 excelRenderOption.setWrappingText((boolean)options.getOrDefault("wrapText", false));
-
                 //TODO what strings are available for office versions?
                 //excelRenderOption.setOfficeVersion();
             }else if(renderOptions.getOutputFormat().equalsIgnoreCase("doc")){

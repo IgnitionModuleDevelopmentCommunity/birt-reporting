@@ -12,10 +12,10 @@ module.exports = {
     devtool: '#source-map',
     module: {
         loaders: [
-            {
-                loader: 'babel',
-                exclude: /node_modules/
-            }
+            { test: /\.js/,   loader: 'babel', exclude: /node_modules/},
+            { test: /\.less/, loader: 'style!css!less'},
+            { test: /\.css/, loader: 'style!css' },
+            { test: /\.(woff2|woff|ttf|svg|eot)$/, loader: 'file' }
         ]
     }
 }

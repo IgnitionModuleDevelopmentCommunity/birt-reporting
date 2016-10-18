@@ -10,27 +10,29 @@ public interface ReportUtilProvider {
 
     public String getReportsAsJSON();
 
+    public boolean reportExists(long id);
+
+    public boolean reportExists(String name);
+
     public byte[] getReport(long id);
 
     public byte[] getReport(String name);
+
+    public long saveReport(long id, String name, String description, byte[] reportData);
+
+    public long saveReport(String name, String description, byte[] reportData);
+
+    public boolean removeReport(long id);
+
+    public boolean removeReport(String name);
 
     public byte[] runAndRenderReport(PyObject[] objects, String[] keywords);
 
     public byte[] runAndRenderReport(long reportId, String reportName, String outputFormat,
                                      PyDictionary parameters, PyDictionary options);
 
-    public long saveReport(long id, String name, String description, byte[] reportData);
+    public String getReportParameters(long id);
 
-    public boolean removeReport(long id);
-
-    public boolean removeReport(String name);
-
-    public Dataset getReportParameters(long id);
-
-    public Dataset getReportParameters(String name);
-
-    public String getReportParametersAsJSON(long id);
-
-    public String getReportParametersAsJSON(String name);
+    public String getReportParameters(String name);
 
 }

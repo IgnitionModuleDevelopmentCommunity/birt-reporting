@@ -45,6 +45,11 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
         return saveReportImpl(id, name, description, reportData);
     }
 
+    @Override
+    public long saveReport(String name, String description, byte[] reportData) {
+        return saveReportImpl(-1L, name, description, reportData);
+    }
+
     protected abstract long saveReportImpl(long id, String name, String description, byte[] reportData);
 
     @Override
@@ -63,6 +68,20 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
     }
 
     protected abstract byte[] getReportImpl(String name);
+
+    @Override
+    public boolean reportExists(long id) {
+        return reportExistsImpl(id);
+    }
+
+    protected abstract boolean reportExistsImpl(long id);
+
+    @Override
+    public boolean reportExists(String name) {
+        return reportExistsImpl(name);
+    }
+
+    protected abstract boolean reportExistsImpl(String name);
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
@@ -127,33 +146,18 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public Dataset getReportParameters(@ScriptArg("id") long id) {
+    public String getReportParameters(@ScriptArg("id") long id) {
         return getReportParametersImpl(id);
     }
 
-    protected abstract Dataset getReportParametersImpl(long id);
+    protected abstract String getReportParametersImpl(long id);
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public Dataset getReportParameters(@ScriptArg("name") String name) {
+    public String getReportParameters(@ScriptArg("name") String name) {
         return getReportParametersImpl(name);
     }
 
-    protected abstract Dataset  getReportParametersImpl(String name);
+    protected abstract String  getReportParametersImpl(String name);
 
-    @Override
-    @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportParametersAsJSON(@ScriptArg("id") long id) {
-        return getReportParametersAsJSONImpl(id);
-    }
-
-    protected abstract String getReportParametersAsJSONImpl(@ScriptArg("id") long id);
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportParametersAsJSON(@ScriptArg("name") String name) {
-        return getReportParametersAsJSONImpl(name);
-    }
-
-    protected abstract String getReportParametersAsJSONImpl(String name);
 }

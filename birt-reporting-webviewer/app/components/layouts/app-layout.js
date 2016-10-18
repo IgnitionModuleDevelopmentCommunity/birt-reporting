@@ -4,47 +4,43 @@
 import React from 'react';
 import { Nav, NavItem, Navbar, MenuItem, NavDropdown, ButtonToolbar, Button, ButtonGroup } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
+import 'bootstrap/less/bootstrap.less';
 
 var AppLayout = React.createClass({
     render: function () {
         return (
             <div>
-                <header>
-                    <Navbar className="navbar navbar-inverse navbar-fixed-top">
-                        <Navbar.Header className="navbar-header">
-                            <LinkContainer to="/">
-                                <Navbar.Brand className="navbar-brand">
-                                    Report Viewer
-                                </Navbar.Brand>
-                            </LinkContainer>
-                            <Navbar.Toggle />
-                        </Navbar.Header>
-                        <Navbar.Collapse className="navbar-collapse collapse">
-                            <Nav className="nav navbar-nav">
-                                <ButtonToolbar className="btn-toolbar">
-                                    <ButtonGroup>
-                                        <Button className="btn">Parameters</Button>
-                                        <Button>Save</Button>
-                                        <Button>Print</Button>
-                                    </ButtonGroup>
-                                </ButtonToolbar>
+                <Navbar inverse>
+                    <Navbar.Header>
+                        <Navbar.Brand>
+                            <a href="#">React-Bootstrap</a>
+                        </Navbar.Brand>
+                        <Navbar.Toggle />
+                    </Navbar.Header>
+                    <Navbar.Collapse>
+                        <Nav>
+                            <NavItem eventKey={1}>Parameters</NavItem>
+                            <NavItem eventKey={2}>Export</NavItem>
+                            <NavItem eventKey={3}>Print</NavItem>
+                        </Nav>
+                    </Navbar.Collapse>
+                </Navbar>
+                <div className="col-xs-4 sidebar">
+                    <div className="sidebar-content">
+                        <section>
+                            <Nav bsStyle="pills" stacked activeKey={1}>
+                                <NavItem eventKey={1} href="/home">NavItem 1 content</NavItem>
+                                <NavItem eventKey={2} title="Item">NavItem 2 content</NavItem>
+                                <NavItem eventKey={3} disabled>NavItem 3 content</NavItem>
                             </Nav>
-                        </Navbar.Collapse>
-                    </Navbar>
-                </header>
-                <div className="container-fluid">
-                    <div className="row">
-                        <div className="col-md-3 sidebar">
-                            <Nav bsStyle="pills" stacked={true} activeKey={1} className="nav nav-sidebar nav-pills">
-                                <LinkContainer to="/"><NavItem  eventKey={1}>Home</NavItem></LinkContainer>
-                                <LinkContainer to="/about"><NavItem eventKey={2}>About</NavItem></LinkContainer>
-                            </Nav>
-                        </div>
+                        </section>
                     </div>
                 </div>
-                <div>
+
+                <div className="col-xs-8">
                     {this.props.children}
                 </div>
+
             </div>
         );
     }
