@@ -35,6 +35,9 @@ public class BaseServlet extends HttpServlet {
             throws ServletException, IOException{
         logger.debug(String.format("Request: [%s] %s", requestType, req.getRequestURI()));
 
+        //TODO remove this when you're done debugging
+        resp.addHeader("Access-Control-Allow-Origin", "*");
+
         for(String route : router.keySet()){
 
             if(req.getRequestURI().matches(URI_BASE + route)){
@@ -71,8 +74,8 @@ public class BaseServlet extends HttpServlet {
         doRequest("DELETE", req, resp);
     }
 
-    protected Map<String, Object> getRequestParams(String queryString){
-        Map<String, Object> parameterMap = new HashMap<>();
+    protected Map<String, String> getRequestParams(String queryString){
+        Map<String, String> parameterMap = new HashMap<>();
 
         if(queryString == null)
             return null;

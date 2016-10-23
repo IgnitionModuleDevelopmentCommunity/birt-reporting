@@ -51,6 +51,17 @@
             <url>http://nexus.inductiveautomation.com:8081/nexus/content/repositories/inductiveautomation-thirdparty
             </url>
         </repository>
+
+        <repository>
+            <id>icesoft</id>
+            <url>http://anonsvn.icesoft.org/repo/maven2/releases/</url>
+        </repository>
+
+        <repository>
+            <id>sun-media</id>
+            <url>http://java.sun.com/products/java-media/jai</url>
+        </repository>
+
     </repositories>
 
 </project>

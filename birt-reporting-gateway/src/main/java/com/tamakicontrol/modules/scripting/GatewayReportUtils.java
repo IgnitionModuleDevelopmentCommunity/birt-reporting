@@ -1,6 +1,5 @@
 package com.tamakicontrol.modules.scripting;
 
-import com.google.gson.Gson;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceSession;
@@ -8,7 +7,6 @@ import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
 import org.eclipse.birt.report.engine.api.*;
-import org.eclipse.birt.report.engine.ir.Report;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -316,7 +314,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
     @SuppressWarnings("unchecked")
     protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat, PyDictionary parameters, PyDictionary options) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
+        runAndRenderToStream(reportId, reportName, outputFormat, null, parameters, options, outputStream);
         return outputStream.toByteArray();
     }
 
@@ -344,11 +342,11 @@ public class GatewayReportUtils extends AbstractReportUtils{
         Map<String, Object> parameters = (Map)args.get("parameters");
         Map<String, Object> options = (Map)args.get("options");
 
-        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
+        runAndRenderToStream(reportId, reportName, outputFormat, null, parameters, options, outputStream);
     }
 
     @SuppressWarnings("unchecked")
-    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
+    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat, String baseImageURL,
                                      Map<String, Object> parameters, Map<String, Object> options, OutputStream outputStream){
 
         byte[] reportData;
@@ -379,13 +377,33 @@ public class GatewayReportUtils extends AbstractReportUtils{
                     logger.trace(String.format("Report Parameters Key: %s, Value: %s", key, value));
                     task.setParameterValue(key, value);
                 });
+
+                //TODO better error handling for invalid parameters
+                if(!task.validateParameters()) {
+                    return;
+                }
             }
 
             RenderOption renderOptions = new RenderOption();
 
             if(outputFormat == null)
                 outputFormat = "html";
+
             renderOptions.setOutputFormat(outputFormat);
+
+            /*
+            *
+            * HTML Image Handling
+            *
+            * All image rendering configurations are done in the HTML render options regardless of the
+            * output type.
+            *
+            * */
+            HTMLRenderOption htmlRenderOption = new HTMLRenderOption(renderOptions);
+            IHTMLImageHandler serverImageHandler = new HTMLServerImageHandler();
+            renderOptions.setImageHandler(serverImageHandler);
+            htmlRenderOption.setImageDirectory(gatewayContext.getTempDir().getPath());
+            renderOptions.setSupportedImageFormats("SVG;PNG;JPG");
 
 
             /*
@@ -393,25 +411,46 @@ public class GatewayReportUtils extends AbstractReportUtils{
             * Build rendering options for report
             *
             * */
-            if(options == null)
+            if(options == null) {
+                logger.trace("Null options given");
                 options = new HashMap<>();
+            }
 
             if(renderOptions.getOutputFormat().equalsIgnoreCase("html")){
-                HTMLRenderOption htmlRenderOption = new HTMLRenderOption(renderOptions);
-                htmlRenderOption.setEmbeddable((boolean)options.getOrDefault("embeddable", false));
+                renderOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
+                logger.trace("Rendering report as HTML");
+
+                logger.trace("Setting image URL to %s", baseImageURL);
+                htmlRenderOption.setBaseImageURL(baseImageURL);
+                htmlRenderOption.setEmbeddable(Boolean.parseBoolean((String)options.getOrDefault("embeddable", "false")));
+                htmlRenderOption.setHtmlPagination(Boolean.parseBoolean((String)options.getOrDefault("pagination", "false")));
             }else if(renderOptions.getOutputFormat().equalsIgnoreCase("pdf")){
+                logger.trace("Rendering report as PDF");
+
+                /*
+                * SVG Must be turned off as a supported image format for PDFs, XLS
+                * and doc or else images and charts won't render
+                * */
+                renderOptions.setSupportedImageFormats("PNG;JPG;BMP");
+
                 PDFRenderOption pdfRenderOption = new PDFRenderOption(renderOptions);
                 pdfRenderOption.setEmbededFont((boolean)options.getOrDefault("embedFont", true));
             }else if(renderOptions.getOutputFormat().equalsIgnoreCase("xls")){
+                logger.trace("Rendering report as xls");
+                renderOptions.setSupportedImageFormats("PNG;JPG;BMP");
+
                 EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOptions);
                 excelRenderOption.setEnableMultipleSheet((boolean)options.getOrDefault("enableMultipleSheets", false));
                 excelRenderOption.setHideGridlines((boolean)options.getOrDefault("disableGridLines", false));
                 excelRenderOption.setWrappingText((boolean)options.getOrDefault("wrapText", false));
+                excelRenderOption.setOutputFileName("Report.xls");
                 //TODO what strings are available for office versions?
                 //excelRenderOption.setOfficeVersion();
             }else if(renderOptions.getOutputFormat().equalsIgnoreCase("doc")){
+                logger.trace("Rendering report as doc");
+                renderOptions.setSupportedImageFormats("PNG;JPG;BMP");
+                renderOptions.setOutputFileName("Report.doc");
                 //TODO find word rendering options
-                assert true;
             }else{
                 renderOptions.setOutputFormat("html");
             }
@@ -422,15 +461,15 @@ public class GatewayReportUtils extends AbstractReportUtils{
             try {
                 task.run();
             }catch (EngineException e){
-                logger.error("Engine exception while attempting to run & render report", e);
+                logger.error("Engine exception while attempting to run and render report", e);
             }catch(NullPointerException e) {
-                logger.error("Null pointer exception while attempting to run & render report", e);
+                logger.error("Null pointer exception while attempting to run and render report", e);
             }finally{
                 task.close();
             }
 
         }catch(EngineException e){
-            logger.error("Exception while creating run & render task", e);
+            logger.error("Exception while creating run and render task", e);
         }
 
     }

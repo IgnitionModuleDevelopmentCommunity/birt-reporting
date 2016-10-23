@@ -41,7 +41,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
         engineConfig.setPlatformContext(new PlatformServletContext(gatewayContext.getServletContext()));
         engineConfig.setEngineHome("");
-        engineConfig.setLogConfig(gatewayContext.getLogsDir().getAbsolutePath(), Level.INFO);
+        engineConfig.setLogConfig(gatewayContext.getLogsDir().getAbsolutePath(), Level.ALL);
 
         verifySchemas(gatewayContext);
 

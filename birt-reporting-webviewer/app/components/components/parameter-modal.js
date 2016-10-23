@@ -1,10 +1,5 @@
-/**
- * Created by cwarren on 10/16/16.
- */
-
 import React from 'react';
 import { Modal, ControlLabel, FormControl, FormGroup, Button } from 'react-bootstrap';
-
 
 var ParameterModal = React.createClass({
 

@@ -58,6 +58,20 @@
             <type>pom</type>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.icepdf</groupId>
+            <artifactId>icepdf-core</artifactId>
+            <version>5.0.2</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.icepdf.os/icepdf-viewer -->
+        <dependency>
+            <groupId>org.icepdf.os</groupId>
+            <artifactId>icepdf-viewer</artifactId>
+            <version>6.1.2</version>
+        </dependency>
+
     </dependencies>
 
     <build>
