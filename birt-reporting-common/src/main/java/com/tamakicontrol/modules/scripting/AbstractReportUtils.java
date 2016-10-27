@@ -9,6 +9,8 @@ import com.inductiveautomation.ignition.common.script.hints.ScriptFunction;
 import org.python.core.PyDictionary;
 import org.python.core.PyObject;
 
+import java.util.Arrays;
+
 public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     static {
@@ -41,12 +43,12 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public long saveReport(long id, String name, String description, byte[] reportData) {
+    public long saveReport(long id, String name, String description, byte[] reportData){
         return saveReportImpl(id, name, description, reportData);
     }
 
     @Override
-    public long saveReport(String name, String description, byte[] reportData) {
+    public long saveReport(String name, String description, byte[] reportData){
         return saveReportImpl(-1L, name, description, reportData);
     }
 
@@ -85,20 +87,11 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public Dataset getReports() {
+    public Dataset getReports(){
         return getReportsImpl();
     }
 
-
     protected abstract Dataset getReportsImpl();
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportsAsJSON() {
-        return getReportsAsJSONImpl();
-    }
-
-    protected abstract String getReportsAsJSONImpl();
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
@@ -106,8 +99,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
             names={"reportId", "reportName", "outputFormat", "parameters", "options"},
             types={Long.class, String.class, String.class, PyDictionary.class, PyDictionary.class}
     )
-
-    public byte[] runAndRenderReport(PyObject[] objects, String[] keywords) {
+    public byte[] runAndRenderReport(PyObject[] objects, String[] keywords) throws IllegalArgumentException{
         PyArgumentMap pyArgs = PyArgumentMap.interpretPyArgs(objects, keywords, this.getClass(), "runAndRenderReport");
 
         Long reportId = pyArgs.getLongArg("reportId");
@@ -116,13 +108,29 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
         PyDictionary parameters = (PyDictionary)pyArgs.get("parameters");
         PyDictionary options = (PyDictionary)pyArgs.get("options");
 
+        validateRunAndRenderParameters(reportId, reportName, outputFormat, parameters, options);
+
         return runAndRenderReport(reportId, reportName, outputFormat, parameters, options);
     }
 
     @Override
     public byte[] runAndRenderReport(long reportId, String reportName, String outputFormat,
-                                     PyDictionary parameters, PyDictionary options) {
+                                     PyDictionary parameters, PyDictionary options) throws IllegalArgumentException{
+
+        validateRunAndRenderParameters(reportId, reportName, outputFormat, parameters, options);
         return runAndRenderReportImpl(reportId, reportName, outputFormat, parameters, options);
+    }
+
+    private void validateRunAndRenderParameters(Long reportId, String reportName, String outputFormat,
+                                                  PyDictionary parameters, PyDictionary options
+    ) throws IllegalArgumentException {
+        if(reportId == null && reportName == null)
+            throw new IllegalArgumentException("Must specify either a report id or name");
+        else if(reportId == null && reportName.equals(""))
+            throw new IllegalArgumentException("Report name cannot be blank");
+
+        if(!Arrays.asList(new String[] {"html", "pdf", "xlsx", "docx"}).contains(outputFormat.toLowerCase()))
+            throw new IllegalArgumentException("Invalid output format specified");
     }
 
     protected abstract byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat,
@@ -130,7 +138,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public boolean removeReport(@ScriptArg("id") long id) {
+    public boolean removeReport(@ScriptArg("id") long id){
         return removeReportImpl(id);
     }
 
@@ -138,7 +146,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public boolean removeReport(@ScriptArg("name") String name) {
+    public boolean removeReport(@ScriptArg("name") String name){
         return removeReportImpl(name);
     }
 
@@ -146,7 +154,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportParameters(@ScriptArg("id") long id) {
+    public String getReportParameters(@ScriptArg("id") long id){
         return getReportParametersImpl(id);
     }
 
@@ -154,7 +162,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportParameters(@ScriptArg("name") String name) {
+    public String getReportParameters(@ScriptArg("name") String name){
         return getReportParametersImpl(name);
     }
 

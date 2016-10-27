@@ -2,10 +2,12 @@ package com.tamakicontrol.modules.scripting;
 
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
+import com.inductiveautomation.ignition.common.script.builtin.DatasetUtilities;
 import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceSession;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
+import com.tamakicontrol.modules.scripting.utils.ArgumentMap;
 import org.eclipse.birt.report.engine.api.*;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -143,6 +145,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
             return false;
 
     }
+
     //</editor-fold>
 
     //<editor-fold desc="getReports">
@@ -167,26 +170,8 @@ public class GatewayReportUtils extends AbstractReportUtils{
         return new BasicDataset(Arrays.asList(names), Arrays.asList(types), data);
     }
 
-    @Override
-    protected String getReportsAsJSONImpl() {
-        List<ReportRecord> reports = getReportRecords();
-        JSONArray jsonArray = new JSONArray();
-        JSONObject jsonObject;
-
-        try {
-            for (ReportRecord report : reports) {
-                jsonObject = new JSONObject();
-                jsonObject.put("reportId", report.getId());
-                jsonObject.put("reportName", report.getName());
-                jsonObject.put("description", report.getDescription());
-
-                jsonArray.put(jsonObject);
-            }
-        }catch (JSONException e){
-            logger.error("JSON exception while serializing reports", e);
-        }
-
-        return jsonArray.toString();
+    public String getReportsAsJSON() {
+        return DatasetUtilities.toJSONObject(getReports()).toString();
     }
 
     public List<ReportRecord> getReportRecords(){
@@ -205,6 +190,14 @@ public class GatewayReportUtils extends AbstractReportUtils{
 
     @Override
     protected String getReportParametersImpl(String name) {
+        return serializeReportParameters(getReport(name));
+    }
+
+    public String getReportParametersJSON(long id){
+        return serializeReportParameters(getReport(id));
+    }
+
+    public String getReportParametersJSON(String name){
         return serializeReportParameters(getReport(name));
     }
 
@@ -282,30 +275,6 @@ public class GatewayReportUtils extends AbstractReportUtils{
         return jsonArray.toString();
     }
 
-    //TODO Should we have a dataset return option?
-    private Dataset serializeParametersAsDataset(List<IParameterDefnBase> params){
-        String[] names = {"name", "displayName", "helpText", "parameterType",
-                "promptText", "typeName"};
-
-        Class[] types = {String.class, String.class, String.class, Integer.class,
-                String.class, String.class};
-
-        Object[][] data = new Object[params.size()][7];
-
-        IParameterDefnBase param;
-        for(int i=0; i < params.size(); i++){
-            param = params.get(i);
-            data[i][0] = param.getName();
-            data[i][1] = param.getDisplayName();
-            data[i][2] = param.getHelpText();
-            data[i][3] = param.getParameterType();
-            data[i][4] = param.getPromptText();
-            data[i][5] = param.getTypeName();
-        }
-
-        return new BasicDataset(names, types, data);
-    }
-
     //</editor-fold>
 
     //<editor-fold desc="runAndRenderReport">
@@ -314,7 +283,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
     @SuppressWarnings("unchecked")
     protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat, PyDictionary parameters, PyDictionary options) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        runAndRenderToStream(reportId, reportName, outputFormat, null, parameters, options, outputStream);
+        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
         return outputStream.toByteArray();
     }
 
@@ -342,25 +311,79 @@ public class GatewayReportUtils extends AbstractReportUtils{
         Map<String, Object> parameters = (Map)args.get("parameters");
         Map<String, Object> options = (Map)args.get("options");
 
-        runAndRenderToStream(reportId, reportName, outputFormat, null, parameters, options, outputStream);
+        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
     }
 
-    @SuppressWarnings("unchecked")
-    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat, String baseImageURL,
-                                     Map<String, Object> parameters, Map<String, Object> options, OutputStream outputStream){
+    public void runReport(Long reportId, String reportName, String outputFormat, Map<String, Object> parameters,
+                          String outputFile){
 
-        byte[] reportData;
-        if(reportId != null){
-            reportData = getReport(reportId);
-        }else if(reportName != null){
-            reportData = getReport(reportName);
-        }else{
-            throw new InvalidParameterException("Must specify either report id or name");
-        }
+        byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
 
         if(reportData == null)
             throw new InvalidParameterException("Invalid report id or name");
 
+        try{
+            IReportRunnable report = GatewayHook.getReportEngine()
+                    .openReportDesign(new ByteArrayInputStream(reportData));
+
+            IRunTask task = GatewayHook.getReportEngine().createRunTask(report);
+
+            task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
+                    this.getClass().getClassLoader());
+
+            setTaskParameters(task, parameters);
+
+            task.run(outputFile);
+            task.close();
+
+        }catch(EngineException e){
+            logger.error("Exception while executing run task", e);
+        }
+
+    }
+
+    public void renderToStream(Long reportId, String reportName, String outputFormat, Map<String, Object> parameters,
+                               Map<String, Object> options, String reportPath, OutputStream outputStream){
+
+        byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
+
+        if(reportData == null)
+            throw new InvalidParameterException("Invalid report id or name");
+
+        try{
+            IReportDocument report = GatewayHook.getReportEngine()
+                    .openReportDocument(reportPath);
+
+            IRenderTask task = GatewayHook.getReportEngine().createRenderTask(report);
+
+            task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
+                    this.getClass().getClassLoader());
+
+            setTaskParameters(task, parameters);
+
+            RenderOption renderOptions = handleRenderOptions(outputFormat, options);
+            renderOptions.setOutputStream(outputStream);
+            task.setRenderOption(renderOptions);
+            //task.setPageRange("1-2");
+            task.render();
+            task.close();
+
+        }catch(EngineException e){
+            logger.error("Exception while creating run and render task", e);
+        }
+    }
+
+
+
+    @SuppressWarnings("unchecked")
+    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
+                                     Map<String, Object> parameters, Map<String, Object> options, OutputStream outputStream){
+
+
+        byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
+
+        if(reportData == null)
+            throw new InvalidParameterException("Invalid report id or name");
 
         try{
             IReportRunnable report = GatewayHook.getReportEngine()
@@ -371,107 +394,93 @@ public class GatewayReportUtils extends AbstractReportUtils{
             task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                     this.getClass().getClassLoader());
 
-            // if parameters are specified, pass them into the task
-            if(parameters != null) {
-                parameters.forEach((key, value) -> {
-                    logger.trace(String.format("Report Parameters Key: %s, Value: %s", key, value));
-                    task.setParameterValue(key, value);
-                });
+            setTaskParameters(task, parameters);
 
-                //TODO better error handling for invalid parameters
-                if(!task.validateParameters()) {
-                    return;
-                }
-            }
-
-            RenderOption renderOptions = new RenderOption();
-
-            if(outputFormat == null)
-                outputFormat = "html";
-
-            renderOptions.setOutputFormat(outputFormat);
-
-            /*
-            *
-            * HTML Image Handling
-            *
-            * All image rendering configurations are done in the HTML render options regardless of the
-            * output type.
-            *
-            * */
-            HTMLRenderOption htmlRenderOption = new HTMLRenderOption(renderOptions);
-            IHTMLImageHandler serverImageHandler = new HTMLServerImageHandler();
-            renderOptions.setImageHandler(serverImageHandler);
-            htmlRenderOption.setImageDirectory(gatewayContext.getTempDir().getPath());
-            renderOptions.setSupportedImageFormats("SVG;PNG;JPG");
-
-
-            /*
-            *
-            * Build rendering options for report
-            *
-            * */
-            if(options == null) {
-                logger.trace("Null options given");
-                options = new HashMap<>();
-            }
-
-            if(renderOptions.getOutputFormat().equalsIgnoreCase("html")){
-                renderOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
-                logger.trace("Rendering report as HTML");
-
-                logger.trace("Setting image URL to %s", baseImageURL);
-                htmlRenderOption.setBaseImageURL(baseImageURL);
-                htmlRenderOption.setEmbeddable(Boolean.parseBoolean((String)options.getOrDefault("embeddable", "false")));
-                htmlRenderOption.setHtmlPagination(Boolean.parseBoolean((String)options.getOrDefault("pagination", "false")));
-            }else if(renderOptions.getOutputFormat().equalsIgnoreCase("pdf")){
-                logger.trace("Rendering report as PDF");
-
-                /*
-                * SVG Must be turned off as a supported image format for PDFs, XLS
-                * and doc or else images and charts won't render
-                * */
-                renderOptions.setSupportedImageFormats("PNG;JPG;BMP");
-
-                PDFRenderOption pdfRenderOption = new PDFRenderOption(renderOptions);
-                pdfRenderOption.setEmbededFont((boolean)options.getOrDefault("embedFont", true));
-            }else if(renderOptions.getOutputFormat().equalsIgnoreCase("xls")){
-                logger.trace("Rendering report as xls");
-                renderOptions.setSupportedImageFormats("PNG;JPG;BMP");
-
-                EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOptions);
-                excelRenderOption.setEnableMultipleSheet((boolean)options.getOrDefault("enableMultipleSheets", false));
-                excelRenderOption.setHideGridlines((boolean)options.getOrDefault("disableGridLines", false));
-                excelRenderOption.setWrappingText((boolean)options.getOrDefault("wrapText", false));
-                excelRenderOption.setOutputFileName("Report.xls");
-                //TODO what strings are available for office versions?
-                //excelRenderOption.setOfficeVersion();
-            }else if(renderOptions.getOutputFormat().equalsIgnoreCase("doc")){
-                logger.trace("Rendering report as doc");
-                renderOptions.setSupportedImageFormats("PNG;JPG;BMP");
-                renderOptions.setOutputFileName("Report.doc");
-                //TODO find word rendering options
-            }else{
-                renderOptions.setOutputFormat("html");
-            }
-
+            RenderOption renderOptions = handleRenderOptions(outputFormat, options);
             renderOptions.setOutputStream(outputStream);
             task.setRenderOption(renderOptions);
 
-            try {
-                task.run();
-            }catch (EngineException e){
-                logger.error("Engine exception while attempting to run and render report", e);
-            }catch(NullPointerException e) {
-                logger.error("Null pointer exception while attempting to run and render report", e);
-            }finally{
-                task.close();
-            }
+            task.run();
+            task.close();
 
         }catch(EngineException e){
             logger.error("Exception while creating run and render task", e);
         }
 
+    }
+
+    private void setTaskParameters(IEngineTask task, Map<String, Object> params){
+        // if parameters are specified, pass them into the task
+        if(params != null) {
+            params.forEach((key, value) -> {
+                logger.trace(String.format("Report Parameters Key: %s, Value: %s", key, value));
+                task.setParameterValue(key, value);
+            });
+        }
+    }
+
+    private RenderOption handleRenderOptions(String outputFormat, Map<String, Object> options){
+        RenderOption renderOptions = new RenderOption();
+
+        if(outputFormat == null)
+            outputFormat = "html";
+
+        if(options == null)
+            options = new HashMap<>();
+
+        if(outputFormat.equalsIgnoreCase("pdf")){
+            handlePDFRenderOptions(renderOptions, options);
+        }else if(outputFormat.equalsIgnoreCase("xlsx")){
+            handleExcelRenderOptions(renderOptions, options);
+        }else if(outputFormat.equalsIgnoreCase("doc")){
+            handleWordRenderOptions(renderOptions, options);
+        }else{
+            renderOptions.setOutputFormat("html");
+            handleHTMLRenderOptions(renderOptions, options);
+        }
+
+        return renderOptions;
+    }
+
+    private void handleHTMLRenderOptions(RenderOption renderOption, Map args){
+        HTMLRenderOption htmlOptions = new HTMLRenderOption(renderOption);
+        ArgumentMap options = new ArgumentMap(args);
+        renderOption.setOutputFormat("html");
+
+        logger.trace(options.getStringArg("baseImageURL"));
+        IHTMLImageHandler serverImageHandler = new HTMLServerImageHandler();
+        htmlOptions.setImageHandler(serverImageHandler);
+        htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
+
+        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
+        htmlOptions.setEmbeddable(options.getBooleanArg("embeddable", false));
+        htmlOptions.setHtmlPagination(options.getBooleanArg("pagination", false));
+        htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
+    }
+
+    private void handlePDFRenderOptions(RenderOption renderOption, Map args){
+        PDFRenderOption pdfOptions = new PDFRenderOption(renderOption);
+        ArgumentMap options = new ArgumentMap(args);
+        renderOption.setOutputFormat("pdf");
+
+        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", false));
+    }
+
+    private void handleExcelRenderOptions(RenderOption renderOption, Map args){
+        EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOption);
+        ArgumentMap options = new ArgumentMap(args);
+        renderOption.setOutputFormat("xlsx");
+
+        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        excelRenderOption.setEnableMultipleSheet(options.getBooleanArg("multipleSheet", false));
+        excelRenderOption.setWrappingText(options.getBooleanArg("wrapText", false));
+        excelRenderOption.setHideGridlines(options.getBooleanArg("hideGridLines", false));
+    }
+
+    private void handleWordRenderOptions(RenderOption renderOption, Map options){
+        renderOption.setOutputFormat("doc");
+        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
     }
 
     //</editor-fold>

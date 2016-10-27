@@ -8,8 +8,7 @@ import java.io.IOException;
 
 public interface ServletResource {
 
-    public String[] getAllowedMethods();
-
-    public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException;
+    void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException,
+            IllegalArgumentException;
 
 }

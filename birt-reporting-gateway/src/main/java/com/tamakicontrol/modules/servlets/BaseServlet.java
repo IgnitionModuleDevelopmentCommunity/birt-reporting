@@ -1,6 +1,7 @@
 package com.tamakicontrol.modules.servlets;
 
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
+import com.tamakicontrol.modules.scripting.utils.ArgumentMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,12 +9,15 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /*
@@ -23,35 +27,47 @@ import java.util.Map;
 * to a doRequest method which will route the request to the appropriate resource (implemented as a java interface).
 *
 * */
-public class BaseServlet extends HttpServlet {
-
-    public static final String URI_BASE = "/main/system/birt-reporting";
+public abstract class BaseServlet extends HttpServlet {
 
     protected static final Logger logger = LoggerFactory.getLogger("birt-reporting");
+    public static final String METHOD_GET = "GET";
+    public static final String METHOD_POST = "POST";
+    public static final String METHOD_PUT = "PUT";
+    public static final String METHOD_DELETE = "DELETE";
 
-    protected HashMap<String, ServletResource> router = new HashMap<>();
+    private HashMap<String, HashMap<String, ServletResource>> router = new HashMap<>();
 
-    protected void doRequest(String requestType, HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException{
-        logger.debug(String.format("Request: [%s] %s", requestType, req.getRequestURI()));
+    public abstract String getUriBase();
+
+    private void doRequest(String requestMethod, HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        logger.debug(String.format("Request: [%s] %s", requestMethod, req.getRequestURI()));
 
         //TODO remove this when you're done debugging
         resp.addHeader("Access-Control-Allow-Origin", "*");
 
-        for(String route : router.keySet()){
+        ServletResource resource = null;
+        for (String route : router.keySet()) {
 
-            if(req.getRequestURI().matches(URI_BASE + route)){
-                if(Arrays.asList(router.get(route).getAllowedMethods()).contains(requestType)) {
-                    router.get(route).doRequest(req, resp);
-                    return;
-                }else{
-                    resp.sendError(405);
-                    return;
-                }
+            if (req.getRequestURI().matches(getUriBase() + route)) {
+
+                if (router.get(route).containsKey(requestMethod))
+                    resource = router.get(route).get(requestMethod);
+                else
+                    resp.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+
+                break;
             }
         }
+        if (resource != null)
+            try {
+                resource.doRequest(req, resp);
+            } catch (IllegalArgumentException e1) {
+                resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            }
+        else
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND);
 
-        resp.sendError(404);
     }
 
     @Override
@@ -74,8 +90,22 @@ public class BaseServlet extends HttpServlet {
         doRequest("DELETE", req, resp);
     }
 
-    protected Map<String, String> getRequestParams(String queryString){
-        Map<String, String> parameterMap = new HashMap<>();
+    public void addResource(String path, String method, ServletResource resource){
+
+        HashMap<String, ServletResource> routerResource = router.get(path);
+
+        if(routerResource == null){
+            routerResource = new HashMap<>();
+            routerResource.put(method, resource);
+            router.put(path, routerResource);
+        }else{
+            routerResource.put(method, resource);
+            router.put(path, routerResource);
+        }
+    }
+
+    protected ArgumentMap getRequestParams(String queryString){
+        ArgumentMap parameterMap = new ArgumentMap();
 
         if(queryString == null)
             return null;
@@ -100,6 +130,17 @@ public class BaseServlet extends HttpServlet {
     protected GatewayContext getContext() {
         GatewayContext context = (GatewayContext)getServletContext().getAttribute(GatewayContext.SERVLET_CONTEXT_KEY);
         return context;
+    }
+
+    protected String getURIComponent(String regex, String requestURI){
+        Pattern pattern = Pattern.compile(getUriBase() + regex);
+        Matcher matcher = pattern.matcher(requestURI);
+
+        if(matcher.matches()){
+            return matcher.group(1);
+        }else{
+            return null;
+        }
     }
 
 }

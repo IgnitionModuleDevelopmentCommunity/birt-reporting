@@ -8,8 +8,6 @@ public interface ReportUtilProvider {
 
     public Dataset getReports();
 
-    public String getReportsAsJSON();
-
     public boolean reportExists(long id);
 
     public boolean reportExists(String name);

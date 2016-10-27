@@ -50,11 +50,6 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
-    protected String getReportsAsJSONImpl() {
-        return rpc.getReportsAsJSON();
-    }
-
-    @Override
     protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat, PyDictionary parameters, PyDictionary options) {
         return rpc.runAndRenderReport(reportId, reportName, outputFormat, parameters, options);
     }
