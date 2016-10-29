@@ -2,6 +2,7 @@ package com.tamakicontrol.modules.servlets;
 
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.scripting.utils.ArgumentMap;
+import org.apache.poi.ss.formula.functions.Match;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,8 @@ public abstract class BaseServlet extends HttpServlet {
     public static final String METHOD_DELETE = "DELETE";
 
     private HashMap<String, HashMap<String, ServletResource>> router = new HashMap<>();
+    private ServletResource defaultResource;
+
 
     public abstract String getUriBase();
 
@@ -65,6 +68,8 @@ public abstract class BaseServlet extends HttpServlet {
             } catch (IllegalArgumentException e1) {
                 resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
             }
+        else if(defaultResource != null)
+            defaultResource.doRequest(req, resp);
         else
             resp.sendError(HttpServletResponse.SC_NOT_FOUND);
 
@@ -104,8 +109,16 @@ public abstract class BaseServlet extends HttpServlet {
         }
     }
 
+    public ServletResource getDefaultResource(){
+        return this.defaultResource;
+    }
+
+    public void setDefaultResource(ServletResource resource){
+        this.defaultResource = resource;
+    }
+
     protected ArgumentMap getRequestParams(String queryString){
-        ArgumentMap parameterMap = new ArgumentMap();
+        ArgumentMap parameterMap = new ArgumentMap( );
 
         if(queryString == null)
             return null;
@@ -141,6 +154,18 @@ public abstract class BaseServlet extends HttpServlet {
         }else{
             return null;
         }
+    }
+
+    protected String getRequestURLBase(String regex, String requestURL){
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(requestURL);
+
+        if(matcher.matches()){
+            return matcher.group(1);
+        }else{
+            return null;
+        }
+
     }
 
 }

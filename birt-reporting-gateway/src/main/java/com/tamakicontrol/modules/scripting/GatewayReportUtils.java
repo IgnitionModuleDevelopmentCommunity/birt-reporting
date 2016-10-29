@@ -447,9 +447,9 @@ public class GatewayReportUtils extends AbstractReportUtils{
         ArgumentMap options = new ArgumentMap(args);
         renderOption.setOutputFormat("html");
 
-        logger.trace(options.getStringArg("baseImageURL"));
         IHTMLImageHandler serverImageHandler = new HTMLServerImageHandler();
         htmlOptions.setImageHandler(serverImageHandler);
+        htmlOptions.setImageDirectory(gatewayContext.getTempDir().getPath());
         htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
 
         renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
@@ -464,7 +464,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
         renderOption.setOutputFormat("pdf");
 
         renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
-        pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", false));
+        pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", true));
     }
 
     private void handleExcelRenderOptions(RenderOption renderOption, Map args){

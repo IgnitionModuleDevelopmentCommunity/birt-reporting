@@ -30,12 +30,27 @@ public class ReportServlet extends BaseServlet {
     public void init() throws ServletException {
         super.init();
         reportUtils = new GatewayReportUtils(getContext());
+        setDefaultResource(redirectToIndexResource);
         addResource("/web/(.*)", METHOD_GET, getStaticResource);
         addResource("/api/reports", METHOD_GET, getReportsResource);
         addResource("/api/run-and-render", METHOD_GET, getRunAndRenderResource);
         addResource("/api/parameters", METHOD_GET, getParametersResource);
         addResource("/api/images/([^\\s]+(\\.(?i)(jpg|png|bmp|svg))$)", METHOD_GET, getImageResource);
     }
+
+    /*
+    *
+    * redirectToIndexResource
+    *
+    * Whenever a resource isn't found, redirect the user to the web index page.
+    *
+    * */
+    private ServletResource redirectToIndexResource = new ServletResource() {
+        @Override
+        public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException, IllegalArgumentException {
+            resp.sendRedirect(getUriBase() + "/web/");
+        }
+    };
 
     /*
         *
@@ -74,7 +89,7 @@ public class ReportServlet extends BaseServlet {
                 }
             });
 
-            String baseImageURL = getURIComponent("(http.*)/run-and-render", req.getRequestURL().toString()) + "/images";
+            String baseImageURL = getRequestURLBase("(http.*)/run-and-render", req.getRequestURL().toString()) + "/images/";
 
             options.put("baseImageURL", baseImageURL);
 
@@ -82,22 +97,23 @@ public class ReportServlet extends BaseServlet {
             ByteArrayOutputStream reportStream = new ByteArrayOutputStream();
             reportUtils.runAndRenderToStream(reportId, reportName, outputFormat,
                     parameters, options, reportStream);
-            resp.setContentLength(reportStream.toByteArray().length);
 
-            resp.setContentType("UTF-8");
             if (outputFormat == null) {
-                resp.setContentType("tex/html");
+                resp.setContentType("text/html");
             } else {
-                if (outputFormat.equalsIgnoreCase("html"))
+                if (outputFormat.equalsIgnoreCase("html")) {
+                    resp.setCharacterEncoding("UTF-8");
                     resp.setContentType("text/html");
-                else if (outputFormat.equalsIgnoreCase("pdf"))
-                    resp.setContentType("text/pdf");
-                else if (outputFormat.equalsIgnoreCase("xlsx")) {
+                } else if (outputFormat.equalsIgnoreCase("pdf")) {
+                    resp.setContentType("application/pdf");
+                } else if (outputFormat.equalsIgnoreCase("xlsx")) {
                     resp.setContentType("application/vnd-msexcel");
                     resp.setHeader("Content-Disposition", "attachment; filename=Report.xlsx");
-                } else if (outputFormat.equalsIgnoreCase("docx")) {
-                    resp.setContentType("application/vnd.ms-excel");
+                    resp.setContentLength(reportStream.toByteArray().length);
+                } else if (outputFormat.equalsIgnoreCase("doc")) {
+                    resp.setContentType("application/msword");
                     resp.setHeader("Content-Disposition", "attachment; filename=Report.doc");
+                    resp.setContentLength(reportStream.toByteArray().length);
                 }
             }
 
@@ -133,7 +149,7 @@ public class ReportServlet extends BaseServlet {
                 else if(requestParams.getStringArg("reportName") != null)
                     resp.getWriter().print(reportUtils.getReportParameters(requestParams.getStringArg("reportName")));
                 else
-                    resp.sendError(404);
+                    resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             }catch (Exception e){
                 logger.error("Exception throws while requesting report parameters", e);
             }
@@ -178,23 +194,41 @@ public class ReportServlet extends BaseServlet {
         @Override
         public void doRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-            String filePath = getURIComponent("/api/images/(.*)", req.getRequestURI());
+            String filePath = getURIComponent("/(.*)", req.getRequestURI());
 
+            /*
+            *
+            * CW 10/27/16
+            * I need to do 3 different if statements here because if the string is null
+            * I need to make it, if it's blank I can't get a substring, and finally
+            * I can do a substring to check for a '/' on the end of the path
+            * and serve up an index.  I get the feeling that this can be reduced
+            * to one line somehow...
+            *
+            * */
             if(filePath == null)
-                resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
-
-            if(filePath.substring(filePath.length() - 1).equals("/"))
+                filePath = "index.html";
+            else if(filePath.isEmpty())
+                filePath += "index.html";
+            else if(filePath.substring(filePath.length() - 1).equals("/"))
                 filePath += "index.html";
 
-            logger.debug(String.format("Serving static file %s", filePath));
+            String mime = getServletContext().getMimeType(filePath);
+            if(mime != null){
+                resp.setContentType(mime);
+            }else{
+                resp.setContentType("text/html");
+            }
 
+            logger.trace(String.format("Serving static file %s", filePath));
             try(
-                InputStream fileStream = GatewayHook.class.getResourceAsStream(filePath);
+                InputStream fileStream = GatewayHook.class.getResourceAsStream(filePath)
             ){
                 IOUtils.copy(fileStream, resp.getOutputStream());
             }catch (IOException e){
+                logger.debug("Static resource request was redirected to index");
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-
+                resp.sendRedirect(getUriBase() + "/web/");
             }
 
         }
@@ -233,6 +267,7 @@ public class ReportServlet extends BaseServlet {
 
             File file = new File(getContext().getTempDir().getPath() + "/" + filePath);
             if(!file.exists()){
+                logger.debug(String.format("Image file %s not found", filePath));
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
             resp.setContentLength((int)file.length());

@@ -45,8 +45,8 @@ gulp.task('copy', function(){
     gulp.src('./public/**/*')
         .pipe(gulp.dest('../birt-reporting-gateway/src/main/resources/com/tamakicontrol/modules/web'));
 
-    gulp.src('./index.html')
-        .pipe(gulp.dest('../birt-reporting-gateway/src/main/resources/com/tamakicontrol/modules/web'));
+//    gulp.src('./index.html')
+//        .pipe(gulp.dest('../birt-reporting-gateway/src/main/resources/com/tamakicontrol/modules/web/'));
 });
 
 

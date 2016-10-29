@@ -9,6 +9,7 @@ import { jsonToQueryString } from '../../util/index';
 import Sidebar from 'react-sidebar';
 import FontAwesome from 'react-fontawesome';
 import ParameterModalNavItem from '../components/parameter-modal-navitem';
+import ExportButtonContainer from '../containers/export-button-container';
 
 var AppLayout = React.createClass({
 
@@ -20,7 +21,7 @@ var AppLayout = React.createClass({
     },
 
     componentWillMount: function() {
-        var mql = window.matchMedia(`(min-width: 800px)`);
+        var mql = window.matchMedia(`(min-width: 945px)`);
         mql.addListener(this.mediaQueryChanged);
         this.setState({mql: mql, sidebarDocked: mql.matches});
     },
@@ -31,31 +32,6 @@ var AppLayout = React.createClass({
 
     mediaQueryChanged: function() {
         this.setState({sidebarDocked: this.state.mql.matches});
-    },
-
-    handleExport: function(selectedKey){
-        var args = {
-            reportId: 8,
-            outputFormat: "pdf",
-            parameters: {
-                RunId: 161012112,
-                Date: '2016-04-15'
-            }
-        };
-        reportApi.getReport(args);
-    },
-
-    getReportURL: function(outputFormat){
-
-        var args = {
-            reportId: 8,
-            outputFormat: outputFormat,
-            parameters: {
-                RunId: 161012112
-            }
-        };
-        var queryString = jsonToQueryString(args);
-        return "http://192.168.0.10:8088/main/system/birt-reporting/api/run-and-render" + queryString;
     },
 
     onSetSidebarOpen: function(open) {
@@ -134,41 +110,45 @@ var AppLayout = React.createClass({
                          docked={this.state.sidebarDocked}
                          styles={this.getSidebarStyles()}
                          onSetOpen={this.onSetSidebarOpen}>
-                    <Navbar inverse>
-                        <Navbar.Header>
-                            { !this.state.sidebarDocked ?
-                                <Nav className="pull-left">
-                                    <NavItem onClick={this.toggleSidebar}>
-                                        <FontAwesome name="chevron-right" />
-                                    </NavItem>
-                                </Nav>
-                                : null
-                            }
-                            <IndexLinkContainer to="/">
-                                <Navbar.Brand>
-                                    Tamaki Reporting
-                                </Navbar.Brand>
-                            </IndexLinkContainer>
-                            <Navbar.Toggle />
-                        </Navbar.Header>
-                        <Navbar.Collapse>
-                            <Nav>
-                                <ParameterModalNavItem eventKey={1}>Parameters</ParameterModalNavItem>
-                                <NavItem eventKey={2}>Print</NavItem>
-                                <NavDropdown eventKey={3} title="Export" id="nav-dropdown">
-                                    <MenuItem eventKey="EXPORT_PDF" href={this.getReportURL("pdf")}>PDF</MenuItem>
-                                    <MenuItem eventKey="EXPORT_XLS" href={this.getReportURL("xls")}>Excel</MenuItem>
-                                    <MenuItem eventKey="EXPORT_WORD" href={this.getReportURL("doc")}>Google</MenuItem>
-                                </NavDropdown>
-                            </Nav>
-                        </Navbar.Collapse>
-                    </Navbar>
                     <div className="container-fluid">
                         <div className="row">
-                            <div className="container">
-                                {this.props.children}
-                            </div>
+                            <Navbar inverse>
+                                <Navbar.Header>
+                                    { !this.state.sidebarDocked ?
+                                        <Nav className="pull-left">
+                                            <NavItem onClick={this.toggleSidebar}>
+                                                <FontAwesome name="chevron-right"/>
+                                            </NavItem>
+                                        </Nav>
+                                        : null
+                                    }
+                                    <IndexLinkContainer to="/main/system/birt-reporting/web/">
+                                        <Navbar.Brand>
+                                            Tamaki Reporting
+                                        </Navbar.Brand>
+                                    </IndexLinkContainer>
+                                    <Navbar.Toggle />3
+                                </Navbar.Header>
+                                <Navbar.Collapse>
+                                    <Nav>
+                                        <ParameterModalNavItem eventKey={1} reportId={this.props.params.reportId}>
+                                            <FontAwesome name="filter" /> Parameters
+                                        </ParameterModalNavItem>
+                                        <NavItem eventKey={2}>
+                                            <FontAwesome name="print" /> Print
+                                        </NavItem>
+                                        <NavDropdown eventKey={3} title="Export" id="nav-dropdown">
+                                            <ExportButtonContainer reportId={this.props.params.reportId} export="pdf"><FontAwesome name="file-pdf-o"/> PDF</ExportButtonContainer>
+                                            <ExportButtonContainer reportId={this.props.params.reportId} export="xlsx"><FontAwesome name="file-excel-o"/> Excel</ExportButtonContainer>
+                                            <ExportButtonContainer reportId={this.props.params.reportId} export="doc"><FontAwesome name="file-word-o"/> Word</ExportButtonContainer>
+                                        </NavDropdown>
+                                    </Nav>
+                                </Navbar.Collapse>
+                            </Navbar>
                         </div>
+                    </div>
+                    <div className="main-content">
+                        {this.props.children}
                     </div>
                 </Sidebar>
             </div>
