@@ -7,7 +7,7 @@ import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceS
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
-import com.tamakicontrol.modules.scripting.utils.ArgumentMap;
+import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.eclipse.birt.report.engine.api.*;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -253,10 +253,16 @@ public class GatewayReportUtils extends AbstractReportUtils{
                     if(scalar.getControlType() == IScalarParameterDefn.LIST_BOX){
                         ArrayList<IParameterSelectionChoice> selectionList = (ArrayList)task.getSelectionList(scalar.getName());
                         HashMap<String, Object>selections = new HashMap<>();
-
+                        logger.trace("Serializing parameter selections");
                         if(selectionList != null)
                             selectionList.forEach(selection -> {
-                                selections.put(selection.getLabel(), selection.getValue());
+                                //TODO JSON Serialization doesn't like null labels or values. Handle this more gracefully.
+                                if(selection.getLabel() != null) {
+                                    logger.trace(String.format("Label: %s, Value: %s", selection.getLabel(), selection.getValue()));
+                                    selections.put(selection.getLabel(), selection.getValue().toString());
+                                }else{
+                                    logger.trace("Nullified Label");
+                                }
                             });
 
                         jsonObject.put("selectionListType", scalar.getSelectionListType());
@@ -331,7 +337,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
             task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                     this.getClass().getClassLoader());
 
-            setTaskParameters(task, parameters);
+            task.setParameterValues(parameters);
 
             task.run(outputFile);
             task.close();
@@ -359,7 +365,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
             task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                     this.getClass().getClassLoader());
 
-            setTaskParameters(task, parameters);
+            task.setParameterValues(parameters);
 
             RenderOption renderOptions = handleRenderOptions(outputFormat, options);
             renderOptions.setOutputStream(outputStream);
@@ -379,7 +385,6 @@ public class GatewayReportUtils extends AbstractReportUtils{
     public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
                                      Map<String, Object> parameters, Map<String, Object> options, OutputStream outputStream){
 
-
         byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
 
         if(reportData == null)
@@ -394,11 +399,12 @@ public class GatewayReportUtils extends AbstractReportUtils{
             task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                     this.getClass().getClassLoader());
 
-            setTaskParameters(task, parameters);
+            task.setParameterValues(parameters);
 
             RenderOption renderOptions = handleRenderOptions(outputFormat, options);
             renderOptions.setOutputStream(outputStream);
             task.setRenderOption(renderOptions);
+
 
             task.run();
             task.close();
@@ -407,16 +413,6 @@ public class GatewayReportUtils extends AbstractReportUtils{
             logger.error("Exception while creating run and render task", e);
         }
 
-    }
-
-    private void setTaskParameters(IEngineTask task, Map<String, Object> params){
-        // if parameters are specified, pass them into the task
-        if(params != null) {
-            params.forEach((key, value) -> {
-                logger.trace(String.format("Report Parameters Key: %s, Value: %s", key, value));
-                task.setParameterValue(key, value);
-            });
-        }
     }
 
     private RenderOption handleRenderOptions(String outputFormat, Map<String, Object> options){
@@ -432,6 +428,8 @@ public class GatewayReportUtils extends AbstractReportUtils{
             handlePDFRenderOptions(renderOptions, options);
         }else if(outputFormat.equalsIgnoreCase("xlsx")){
             handleExcelRenderOptions(renderOptions, options);
+        }else if(outputFormat.equalsIgnoreCase("xls")){
+            handleXLSRenderOptions(renderOptions, options);
         }else if(outputFormat.equalsIgnoreCase("doc")){
             handleWordRenderOptions(renderOptions, options);
         }else{
@@ -445,14 +443,14 @@ public class GatewayReportUtils extends AbstractReportUtils{
     private void handleHTMLRenderOptions(RenderOption renderOption, Map args){
         HTMLRenderOption htmlOptions = new HTMLRenderOption(renderOption);
         ArgumentMap options = new ArgumentMap(args);
-        renderOption.setOutputFormat("html");
+        htmlOptions.setOutputFormat("html");
 
         IHTMLImageHandler serverImageHandler = new HTMLServerImageHandler();
         htmlOptions.setImageHandler(serverImageHandler);
         htmlOptions.setImageDirectory(gatewayContext.getTempDir().getPath());
         htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
 
-        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
+        htmlOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
         htmlOptions.setEmbeddable(options.getBooleanArg("embeddable", false));
         htmlOptions.setHtmlPagination(options.getBooleanArg("pagination", false));
         htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
@@ -461,21 +459,33 @@ public class GatewayReportUtils extends AbstractReportUtils{
     private void handlePDFRenderOptions(RenderOption renderOption, Map args){
         PDFRenderOption pdfOptions = new PDFRenderOption(renderOption);
         ArgumentMap options = new ArgumentMap(args);
-        renderOption.setOutputFormat("pdf");
+        pdfOptions.setOutputFormat("pdf");
 
-        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        pdfOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP");
         pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", true));
     }
 
     private void handleExcelRenderOptions(RenderOption renderOption, Map args){
         EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOption);
         ArgumentMap options = new ArgumentMap(args);
-        renderOption.setOutputFormat("xlsx");
+        excelRenderOption.setOutputFormat("xlsx");
 
-        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        excelRenderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
         excelRenderOption.setEnableMultipleSheet(options.getBooleanArg("multipleSheet", false));
         excelRenderOption.setWrappingText(options.getBooleanArg("wrapText", false));
         excelRenderOption.setHideGridlines(options.getBooleanArg("hideGridLines", false));
+        excelRenderOption.setEmitterID(options.getStringArg("emitterId"));
+        logger.info(excelRenderOption.getEmitterID());
+        //  excelRenderOption.setEmitterID("org.eclipse.birt.report.engine.emitter.prototype.excel");
+        //	uk.co.spudsoft.birt.emitters.excel.XlsxEmitter
+        //  uk.co.spudsoft.birt.emitters.excel.XlsEmitter
+    }
+
+    private void handleXLSRenderOptions(RenderOption renderOption, Map args){
+        ArgumentMap options = new ArgumentMap(args);
+
+        renderOption.setOutputFormat("xls");
+        renderOption.setEmitterID(options.getStringArg("emitterId"));
     }
 
     private void handleWordRenderOptions(RenderOption renderOption, Map options){

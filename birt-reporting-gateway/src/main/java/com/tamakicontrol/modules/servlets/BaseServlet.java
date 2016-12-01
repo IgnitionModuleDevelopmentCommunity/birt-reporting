@@ -1,8 +1,7 @@
 package com.tamakicontrol.modules.servlets;
 
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
-import com.tamakicontrol.modules.scripting.utils.ArgumentMap;
-import org.apache.poi.ss.formula.functions.Match;
+import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,13 +9,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,7 +34,6 @@ public abstract class BaseServlet extends HttpServlet {
 
     private HashMap<String, HashMap<String, ServletResource>> router = new HashMap<>();
     private ServletResource defaultResource;
-
 
     public abstract String getUriBase();
 
@@ -127,10 +122,17 @@ public abstract class BaseServlet extends HttpServlet {
             String[] parameters = URLDecoder.decode(queryString, "UTF-8").split("&");
             if(parameters.length > 0){
                 for(int i=0; i < parameters.length; i++){
+
                     String[] keyValuePair = parameters[i].split("=");
 
-                    logger.trace(String.format("Key: %s, Value: %s", keyValuePair[0], keyValuePair[1]));
-                    parameterMap.put(keyValuePair[0], keyValuePair[1]);
+
+                    if(keyValuePair.length > 1) {
+                        logger.trace(String.format("Key: %s, Value: %s", keyValuePair[0], keyValuePair[1]));
+                        parameterMap.put(keyValuePair[0], keyValuePair[1]);
+                    } else {
+                        logger.trace(String.format("Key: %s, Value: %s", keyValuePair[0], true));
+                        parameterMap.put(keyValuePair[0], true);
+                    }
                 }
             }
         }catch (UnsupportedEncodingException e){

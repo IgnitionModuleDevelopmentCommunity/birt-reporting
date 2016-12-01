@@ -9,10 +9,12 @@ import com.inductiveautomation.ignition.gateway.model.AbstractGatewayModuleHook;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.records.ReportRecord;
 import com.tamakicontrol.modules.scripting.GatewayReportUtils;
+import com.tamakicontrol.modules.service.ReportEngineService;
 import com.tamakicontrol.modules.servlets.ReportServlet;
 import org.eclipse.birt.core.exception.BirtException;
 import org.eclipse.birt.core.framework.Platform;
 import org.eclipse.birt.core.framework.PlatformServletContext;
+import org.eclipse.birt.report.engine.api.EmitterInfo;
 import org.eclipse.birt.report.engine.api.EngineConfig;
 import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportEngineFactory;
@@ -22,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.logging.Level;
 
 public class GatewayHook extends AbstractGatewayModuleHook {
@@ -52,6 +56,9 @@ public class GatewayHook extends AbstractGatewayModuleHook {
                     .createFactoryObject(IReportEngineFactory.EXTENSION_REPORT_ENGINE_FACTORY);
 
             engine = factory.createReportEngine(engineConfig);
+
+            //TODO Switch from gateway hook service to ReportEngineService
+            //ReportEngineService.initEngineInstance(gatewayContext);
         }catch (BirtException e){
             logger.error("Error while starting Birt Platform", e);
         }
@@ -62,7 +69,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     @Override
     public void startup(LicenseState licenseState) {
-
+        Date d = new Date();
+        d.getTime();
     }
 
     @Override
@@ -70,6 +78,9 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         BundleUtil.get().removeBundle("TamakiReporting");
 
         try {
+            //TODO Switch from gateway hook service to ReportEngineService
+            //ReportEngineService.destroyEngineInstance();
+
             if(engine != null)
                 engine.destroy();
 

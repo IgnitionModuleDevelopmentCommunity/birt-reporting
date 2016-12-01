@@ -1,5 +1,7 @@
 package com.tamakicontrol.modules.client;
 
+import com.inductiveautomation.ignition.client.gateway_interface.GatewayConnectionManager;
+import com.inductiveautomation.ignition.client.gateway_interface.GatewayInterface;
 import com.inductiveautomation.ignition.client.model.ClientContext;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
 import com.inductiveautomation.ignition.common.script.ScriptManager;

@@ -1,4 +1,4 @@
-package com.tamakicontrol.modules.scripting.utils;
+package com.tamakicontrol.modules.utils;
 
 import java.util.HashMap;
 import java.util.Map;

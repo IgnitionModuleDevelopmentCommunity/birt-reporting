@@ -4,7 +4,7 @@ import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.script.builtin.DatasetUtilities;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.scripting.GatewayReportUtils;
-import com.tamakicontrol.modules.scripting.utils.ArgumentMap;
+import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.apache.commons.io.IOUtils;
 
 import javax.servlet.ServletException;
@@ -82,9 +82,10 @@ public class ReportServlet extends BaseServlet {
             HashMap<String, Object> options = new HashMap<>();
 
             args.keySet().forEach(key -> {
-                if (key.matches("parameters.")) {
+                if (key.matches("parameters.(.*)")) {
+                    logger.trace(String.format("Parameter: %s Value: %s", key.split("\\.")[1], args.get(key)));
                     parameters.put(key.split("\\.")[1], args.get(key));
-                } else if (key.matches("options.")) {
+                } else if (key.matches("options.(.*)")) {
                     options.put(key.split("\\.")[1], args.get(key));
                 }
             });
@@ -106,6 +107,9 @@ public class ReportServlet extends BaseServlet {
                     resp.setContentType("text/html");
                 } else if (outputFormat.equalsIgnoreCase("pdf")) {
                     resp.setContentType("application/pdf");
+                } else if(outputFormat.equalsIgnoreCase("xls")){
+                    resp.setContentType("application/vnd-msexcel");
+                    resp.setHeader("Content-Disposition", "attachment; filename=Report.xls");
                 } else if (outputFormat.equalsIgnoreCase("xlsx")) {
                     resp.setContentType("application/vnd-msexcel");
                     resp.setHeader("Content-Disposition", "attachment; filename=Report.xlsx");
@@ -224,7 +228,10 @@ public class ReportServlet extends BaseServlet {
             try(
                 InputStream fileStream = GatewayHook.class.getResourceAsStream(filePath)
             ){
-                IOUtils.copy(fileStream, resp.getOutputStream());
+                if(fileStream != null)
+                    IOUtils.copy(fileStream, resp.getOutputStream());
+                else
+                    redirectToIndexResource.doRequest(req, resp);
             }catch (IOException e){
                 logger.debug("Static resource request was redirected to index");
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND);

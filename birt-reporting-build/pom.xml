@@ -20,12 +20,12 @@
         </dependency>
         <dependency>
             <groupId>com.tamakicontrol.modules</groupId>
-            <artifactId>birt-reporting-common</artifactId>
+            <artifactId>birt-reporting-designer</artifactId>
             <version>1.8.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.tamakicontrol.modules</groupId>
-            <artifactId>birt-reporting-designer</artifactId>
+            <artifactId>birt-reporting-common</artifactId>
             <version>1.8.0-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -58,12 +58,12 @@
                             <scope>C</scope>
                         </projectScope>
                         <projectScope>
-                            <name>birt-reporting-common</name>
-                            <scope>CDG</scope>
-                        </projectScope>
-                        <projectScope>
                             <name>birt-reporting-designer</name>
                             <scope>CD</scope>
+                        </projectScope>
+                        <projectScope>
+                            <name>birt-reporting-common</name>
+                            <scope>CDG</scope>
                         </projectScope>
                         <projectScope>
                             <name>birt-reporting-gateway</name>
