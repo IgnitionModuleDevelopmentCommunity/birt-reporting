@@ -13,7 +13,7 @@
     <description>An open source reporting platform for Ignition</description>
 
     <properties>
-        <ignition-sdk-version>7.8.4-SNAPSHOT</ignition-sdk-version>
+        <ignition-sdk-version>7.8.4</ignition-sdk-version>
     </properties>
 
     <modules>
@@ -50,16 +50,6 @@
             <id>thirdparty</id>
             <url>http://nexus.inductiveautomation.com:8081/nexus/content/repositories/inductiveautomation-thirdparty
             </url>
-        </repository>
-
-        <repository>
-            <id>icesoft</id>
-            <url>http://anonsvn.icesoft.org/repo/maven2/releases/</url>
-        </repository>
-
-        <repository>
-            <id>sun-media</id>
-            <url>http://java.sun.com/products/java-media/jai</url>
         </repository>
 
     </repositories>

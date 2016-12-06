@@ -26,7 +26,7 @@
     <orderEntry type="library" name="Maven: batik:batik-util:1.6" level="project" />
     <orderEntry type="library" name="Maven: batik:batik-xml:1.6" level="project" />
     <orderEntry type="module" module-name="birt-reporting-common" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:common:7.8.4-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:common:7.8.4" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.google.code.findbugs:jsr305:3.0.0" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: commons-io:commons-io:2.1" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.apache.commons:commons-lang3:3.3.2" level="project" />
@@ -52,10 +52,10 @@
     <orderEntry type="library" scope="PROVIDED" name="Maven: net.sf.barcode4j:barcode4j:2.1" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: commons-cli:commons-cli:1.0" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: commons-lang:commons-lang:1.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:client-api:7.8.4-SNAPSHOT" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:client-bootstrap:7.8.4-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:client-api:7.8.4" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:client-bootstrap:7.8.4" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: net.java.dev.timingframework:timingframework:1.0" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:active-query-builder:7.8.4-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:active-query-builder:7.8.4" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jgoodies:forms:1.0.7" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.incors:alloy:1.4.4.ia1" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.miglayout:miglayout-swing:4.2" level="project" />
@@ -63,8 +63,7 @@
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jidesoft:jide-components:3.5.13" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jidesoft:jide-grids:3.5.13" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jidesoft:jide-plaf:3.5.13" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.vision:vision-designer:8.8.4-SNAPSHOT" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:designer:7.8.4-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.ignition:designer:7.8.4" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jidesoft:jide-action:3.5.13" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jidesoft:jide-dialogs:3.5.13" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.jidesoft:jide-dock:3.5.13" level="project" />
@@ -76,8 +75,9 @@
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.mozilla:rhino:1.7.6" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.fifesoft:rstaui:2.5.7" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: com.fifesoft:spellchecker:2.5.7" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.vision:vision-client:8.8.4-SNAPSHOT" level="project" />
-    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.vision:vision-common:8.8.4-SNAPSHOT" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.vision:vision-designer:8.8.4" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.vision:vision-client:8.8.4" level="project" />
+    <orderEntry type="library" scope="PROVIDED" name="Maven: com.inductiveautomation.vision:vision-common:8.8.4" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.apache.xmlgraphics:batik-swing:1.7" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.apache.xmlgraphics:batik-awt-util:1.7" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.apache.xmlgraphics:batik-bridge:1.7" level="project" />
