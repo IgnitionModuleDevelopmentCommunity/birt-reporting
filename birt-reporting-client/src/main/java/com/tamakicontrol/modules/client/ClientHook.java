@@ -16,6 +16,7 @@ public class ClientHook extends AbstractClientModuleHook {
     @Override
     public void startup(ClientContext context, LicenseState activationState) throws Exception {
         super.startup(context, activationState);
+        logger.info("Starting up BIRT reporting");
     }
 
     @Override

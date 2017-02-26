@@ -1,3 +1,6 @@
+/**
+ * Created by cwarren on 10/4/16.
+ */
 var gulp = require('gulp');
 var del = require('del');
 var webpack = require('webpack-stream');
@@ -41,14 +44,6 @@ gulp.task('serve:node', function(done) {
     });
 });
 
-gulp.task('copy', function(){
-    gulp.src('./public/**/*')
-        .pipe(gulp.dest('../birt-reporting-gateway/src/main/resources/com/tamakicontrol/modules/web'));
-
-//    gulp.src('./index.html')
-//        .pipe(gulp.dest('../birt-reporting-gateway/src/main/resources/com/tamakicontrol/modules/web/'));
-});
-
 
 /**
  * Main tasks
@@ -57,4 +52,3 @@ gulp.task('copy', function(){
 gulp.task('serve', ['serve:node']);
 gulp.task('watch', ['build', 'watch:build']);
 gulp.task('default', ['serve']);
-//gulp.task('copy');

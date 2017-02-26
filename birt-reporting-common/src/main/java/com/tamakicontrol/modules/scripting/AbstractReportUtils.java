@@ -129,7 +129,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
         else if(reportId == null && reportName.equals(""))
             throw new IllegalArgumentException("Report name cannot be blank");
 
-        if(!Arrays.asList(new String[] {"html", "pdf", "xlsx", "docx"}).contains(outputFormat.toLowerCase()))
+        if(!Arrays.asList(new String[] {"html", "pdf", "xls", "xlsx", "doc", "docx"}).contains(outputFormat.toLowerCase()))
             throw new IllegalArgumentException("Invalid output format specified");
     }
 
