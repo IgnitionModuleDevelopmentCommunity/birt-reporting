@@ -10,9 +10,16 @@ import ReportViewerContainer from './components/containers/report-viewer-contain
 
 export default (
     <Router history={browserHistory}>
+        <Route path="/main/system/birt-reporting/web/" component={AppLayout} >
+            <IndexRoute component={Home} />
+            <Route path="reports/">
+                <IndexRoute component={ReportViewerContainer} />
+                <Route path=":id" component={ReportViewerContainer} />
+            </Route>
+        </Route>
         <Route path="/" component={AppLayout} >
             <IndexRoute component={Home} />
-            <Route path="/reports/">
+            <Route path="reports">
                 <Route path=":id" component={ReportViewerContainer} />
             </Route>
         </Route>

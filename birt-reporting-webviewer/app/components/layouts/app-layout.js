@@ -3,7 +3,7 @@ import 'bootstrap/less/bootstrap.less';
 import { Nav, NavItem, Navbar, MenuItem, NavDropdown } from 'react-bootstrap';
 import { Link } from 'react-router';
 import { IndexLinkContainer, LinkContainer } from 'react-router-bootstrap';
-import * as reportsApi from '../../api/reports-api';
+import * as api from '../../api.js';
 
 var AppLayout = React.createClass({
 
@@ -14,9 +14,9 @@ var AppLayout = React.createClass({
     },
 
     componentDidMount: function(){
-        reportsApi.getReports(response => {
+        api.getReports(response => {
             console.log(response);
-            this.setState({reports: response.data.rows});
+            this.setState({reports: response.data.rows ? response.data.rows : []});
         })
     },
 
@@ -39,20 +39,13 @@ var AppLayout = React.createClass({
                                     <NavDropdown eventKey="reports" title="Reports" id="nav-dropdown">
                                         {this.state.reports.map(report => {
                                             return(
-                                                <LinkContainer to={"/reports/" + report[0]}>
-                                                    <MenuItem eventKey={"reports" + report[0]}>
+                                                <LinkContainer to={"/main/system/birt-reporting/web/reports/" + report[0]} key={report[0]}>
+                                                    <MenuItem eventKey={"reports" + report[0]} id={report[0]}>
                                                         {report[2]}
                                                     </MenuItem>
                                                 </LinkContainer>
                                             );
                                         })}
-                                    </NavDropdown>
-                                    <NavDropdown eventKey="1" title="Dropdown">
-                                        <MenuItem eventKey="1.1">Action</MenuItem>
-                                        <MenuItem eventKey="1.2">Another action</MenuItem>
-                                        <MenuItem eventKey="1.3">Something else here</MenuItem>
-                                        <MenuItem divider />
-                                        <MenuItem eventKey="1.4">Separated link</MenuItem>
                                     </NavDropdown>
                                 </Nav>
                             </Navbar.Collapse>

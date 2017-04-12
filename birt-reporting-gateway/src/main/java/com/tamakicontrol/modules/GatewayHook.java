@@ -12,21 +12,12 @@ import com.tamakicontrol.modules.scripting.GatewayReportUtils;
 import com.tamakicontrol.modules.service.ReportEngineService;
 import com.tamakicontrol.modules.servlets.ReportServlet;
 import org.eclipse.birt.core.exception.BirtException;
-import org.eclipse.birt.core.framework.Platform;
-import org.eclipse.birt.core.framework.PlatformServletContext;
-import org.eclipse.birt.report.engine.api.EmitterInfo;
-import org.eclipse.birt.report.engine.api.EngineConfig;
-import org.eclipse.birt.report.engine.api.IReportEngine;
-import org.eclipse.birt.report.engine.api.IReportEngineFactory;
-import org.eclipse.core.internal.registry.RegistryProviderFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.logging.Level;
 
 public class GatewayHook extends AbstractGatewayModuleHook {
 
@@ -34,8 +25,6 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     private GatewayContext gatewayContext;
 
-    private static IReportEngine engine;
-    private EngineConfig engineConfig = new EngineConfig();
 
     @Override
     public void setup(GatewayContext gatewayContext){
@@ -43,22 +32,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
         BundleUtil.get().addBundle("BirtReporting", getClass(), "BirtReporting");
 
-        engineConfig.setPlatformContext(new PlatformServletContext(gatewayContext.getServletContext()));
-        engineConfig.setEngineHome("");
-        engineConfig.setLogConfig(gatewayContext.getLogsDir().getAbsolutePath(), Level.ALL);
-
         verifySchemas(gatewayContext);
 
         try{
-            Platform.startup();
-
-            IReportEngineFactory factory = (IReportEngineFactory)Platform
-                    .createFactoryObject(IReportEngineFactory.EXTENSION_REPORT_ENGINE_FACTORY);
-
-            engine = factory.createReportEngine(engineConfig);
-
-            //TODO Switch from gateway hook service to ReportEngineService
-            //ReportEngineService.initEngineInstance(gatewayContext);
+            ReportEngineService.initEngineInstance(gatewayContext);
         }catch (BirtException e){
             logger.error("Error while starting Birt Platform", e);
         }
@@ -78,14 +55,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         BundleUtil.get().removeBundle("TamakiReporting");
 
         try {
-            //TODO Switch from gateway hook service to ReportEngineService
-            //ReportEngineService.destroyEngineInstance();
-
-            if(engine != null)
-                engine.destroy();
-
-            Platform.shutdown();
-            RegistryProviderFactory.releaseDefault();
+            ReportEngineService.destroyEngineInstance();
         }catch(Exception e){
             logger.error("Failed to shutdown BIRT engine", e);
         }
@@ -113,12 +83,8 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         return new GatewayReportUtils(gatewayContext);
     }
 
-    public static IReportEngine getReportEngine(){
-        return engine;
-    }
-
-    public static InputStream getStaticResource(String filePath){
-        return GatewayHook.class.getResourceAsStream(filePath);
-    }
+//    public static InputStream getStaticResource(String filePath){
+//        return GatewayHook.class.getResourceAsStream(filePath);
+//    }
 
 }

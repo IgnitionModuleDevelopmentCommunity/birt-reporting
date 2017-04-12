@@ -1,6 +1,7 @@
 package com.tamakicontrol.modules.service;
 
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
+import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.service.api.ReportServiceException;
 import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.eclipse.birt.core.exception.BirtException;
@@ -11,7 +12,10 @@ import org.eclipse.core.internal.registry.RegistryProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
@@ -71,11 +75,19 @@ public class ReportEngineService {
         ReportEngineService.instance = new ReportEngineService(servletContext);
     }
 
+    /**
+     * Destory engine instance
+     *
+     * */
     public synchronized static void destroyEngineInstance(){
         ReportEngineService.getInstance().destroyEngine();
 
         Platform.shutdown();
         RegistryProviderFactory.releaseDefault();
+    }
+
+    public IReportEngine getEngine(){
+        return this.engine;
     }
 
     private void destroyEngine(){
@@ -95,6 +107,21 @@ public class ReportEngineService {
         return reportDesign;
     }
 
+    public ArrayList<IParameterDefnBase> getReportParameters(byte[] reportData){
+        ArrayList<IParameterDefnBase> params = null;
+
+        try {
+            IReportRunnable report = engine.openReportDesign(new ByteArrayInputStream(reportData));
+
+            IGetParameterDefinitionTask task = engine.createGetParameterDefinitionTask(report);
+            params = (ArrayList)task.getParameterDefns(true);
+        }catch(EngineException e){
+            logger.error("Engine exception while opening report", e);
+        }
+
+        return params;
+    }
+
     public IRunAndRenderTask createRunAndRenderTask(IReportRunnable report, String outputFormat, Map options,
                                                     Map parameters, OutputStream outputStream) throws ReportServiceException {
 
@@ -103,8 +130,34 @@ public class ReportEngineService {
         task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                 this.getClass().getClassLoader());
 
+        if(parameters != null) {
+
+            task.setParameterValues(parameters);
+        }
+
+        RenderOption renderOption = createRenderOption(outputFormat, options);
+        renderOption.setOutputStream(outputStream);
+
+        task.setRenderOption(renderOption);
+
+        return task;
+    }
+
+    public IRunTask createRunTask(IReportRunnable report, Map parameters) throws ReportServiceException {
+        IRunTask task = engine.createRunTask(report);
+
+        task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
+                this.getClass().getClassLoader());
+
         if(parameters != null)
             task.setParameterValues(parameters);
+
+        return task;
+    }
+
+    public IRenderTask createRenderTask(IReportDocument document, String outputFormat, Map options,
+                                        OutputStream outputStream){
+        IRenderTask task = engine.createRenderTask(document);
 
         RenderOption renderOption = createRenderOption(outputFormat, options);
         renderOption.setOutputStream(outputStream);

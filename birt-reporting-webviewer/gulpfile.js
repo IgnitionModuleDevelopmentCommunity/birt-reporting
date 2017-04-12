@@ -14,7 +14,8 @@ var path = require('path');
  */
 
 gulp.task('clean:build', function() {
-    del('./public/js/*')
+    del('./public/js/*');
+    del('./../birt-reporting-gateway/src/main/resources/web/js/*');
 })
 
 gulp.task('build', ['clean:build'], function() {
@@ -23,7 +24,8 @@ gulp.task('build', ['clean:build'], function() {
         .on('error', function handleError() {
             this.emit('end'); // Recover from errors
         })
-        .pipe(gulp.dest('./'));
+        .pipe(gulp.dest('./'))
+        .pipe(gulp.dest('../birt-reporting-gateway/src/main/resources/web/js/'));
 });
 
 gulp.task('watch:build', function() {

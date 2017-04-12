@@ -8,9 +8,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
-/**
- * Created by cwarren on 10/19/16.
- */
 public class EngineLogger extends java.util.logging.Logger {
 
     private final Logger logger = LoggerFactory.getLogger("birt-reporting-engine");

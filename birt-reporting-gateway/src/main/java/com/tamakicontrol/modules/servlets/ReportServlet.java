@@ -156,6 +156,7 @@ public class ReportServlet extends BaseServlet {
                     resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             }catch (Exception e){
                 logger.error("Exception throws while requesting report parameters", e);
+                resp.sendError(500);
             }
         }
     };

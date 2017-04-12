@@ -7,8 +7,11 @@ import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceS
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
 import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
+import com.tamakicontrol.modules.service.ReportEngineService;
+import com.tamakicontrol.modules.service.api.ReportServiceException;
 import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.eclipse.birt.report.engine.api.*;
+import org.eclipse.jetty.http.DateParser;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,6 +25,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 
 import java.security.InvalidParameterException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class GatewayReportUtils extends AbstractReportUtils{
@@ -205,13 +210,18 @@ public class GatewayReportUtils extends AbstractReportUtils{
     private String serializeReportParameters(byte[] reportData) {
 
         ArrayList<IParameterDefnBase> params = null;
+
         IGetParameterDefinitionTask task = null;
         try {
-            IReportRunnable report = GatewayHook.getReportEngine()
+            IReportRunnable report = ReportEngineService.getInstance().getEngine()
                     .openReportDesign(new ByteArrayInputStream(reportData));
 
-            task = GatewayHook.getReportEngine().createGetParameterDefinitionTask(report);
+            task = ReportEngineService.getInstance().getEngine().createGetParameterDefinitionTask(report);
             params = (ArrayList)task.getParameterDefns(true);
+
+            // TODO sort parameters here
+
+
         }catch(EngineException e){
             logger.error("Engine exception while opening report", e);
         }
@@ -250,15 +260,18 @@ public class GatewayReportUtils extends AbstractReportUtils{
                     jsonObject.put("userProperties", scalar.getUserPropertyValues());
                     jsonObject.put("controlType", scalar.getControlType());
 
+
+
                     if(scalar.getControlType() == IScalarParameterDefn.LIST_BOX){
-                        ArrayList<IParameterSelectionChoice> selectionList = (ArrayList)task.getSelectionList(scalar.getName());
-                        HashMap<String, Object>selections = new HashMap<>();
+                        List<IParameterSelectionChoice> selectionList = (List)task.getSelectionList(scalar.getName());
+                        TreeMap<String, Object>selections = new TreeMap<>();
                         logger.trace("Serializing parameter selections");
                         if(selectionList != null)
                             selectionList.forEach(selection -> {
                                 //TODO JSON Serialization doesn't like null labels or values. Handle this more gracefully.
                                 if(selection.getLabel() != null) {
-                                    logger.trace(String.format("Label: %s, Value: %s", selection.getLabel(), selection.getValue()));
+                                    logger.trace(String.format("Label: %s, Value: %s", selection.getLabel(),
+                                            selection.getValue()));
                                     selections.put(selection.getLabel(), selection.getValue().toString());
                                 }else{
                                     logger.trace("Nullified Label");
@@ -287,7 +300,9 @@ public class GatewayReportUtils extends AbstractReportUtils{
 
     @Override
     @SuppressWarnings("unchecked")
-    protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat, PyDictionary parameters, PyDictionary options) {
+    protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat,
+                                            PyDictionary parameters, PyDictionary options) {
+
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
         return outputStream.toByteArray();
@@ -320,7 +335,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
         runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
     }
 
-    public void runReport(Long reportId, String reportName, String outputFormat, Map<String, Object> parameters,
+    public void runReport(Long reportId, String reportName, Map<String, Object> parameters,
                           String outputFile){
 
         byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
@@ -329,23 +344,66 @@ public class GatewayReportUtils extends AbstractReportUtils{
             throw new InvalidParameterException("Invalid report id or name");
 
         try{
-            IReportRunnable report = GatewayHook.getReportEngine()
+            IReportRunnable report = ReportEngineService.getInstance()
                     .openReportDesign(new ByteArrayInputStream(reportData));
 
-            IRunTask task = GatewayHook.getReportEngine().createRunTask(report);
 
-            task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
-                    this.getClass().getClassLoader());
+            IRunTask task = ReportEngineService.getInstance().createRunTask(report, parameters);
 
-            task.setParameterValues(parameters);
-
-            task.run(outputFile);
+            task.run();
             task.close();
-
         }catch(EngineException e){
             logger.error("Exception while executing run task", e);
+        }catch(ReportServiceException e){
+            logger.error("Report Engine Service Exception while executing run task", e);
         }
 
+    }
+
+    /**
+     *
+     * Read in parameters from report definition and type cast method parameters to match.
+     * If you try to send BIRT a string argument (from a web call) to a report expecting an integer,
+     * it throws an exception.
+     *
+     * */
+    private Map<String, Object> typeCastReportParameters(byte[] reportData, Map<String, Object> parameters){
+
+        ArrayList<IParameterDefnBase> reportParameters = ReportEngineService.getInstance().getReportParameters(reportData);
+        for(IParameterDefnBase _param : reportParameters) {
+            IScalarParameterDefn param = (IScalarParameterDefn)_param;
+            String _value = (String)parameters.get(param.getName());
+            Object value = null;
+
+            if(_value != null) {
+                logger.debug(String.format("Casting parameter %s to type %s", param.getName(), param.getDataType()));
+                try{
+                    switch(param.getDataType()){
+                        case PARAMETER_DATATYPE_BOOLEAN:
+                            value = Boolean.parseBoolean(_value);
+                            break;
+                        case PARAMETER_DATATYPE_DATE:
+                            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                            value = formatter.parse(_value);
+                            break;
+                        case PARAMETER_DATATYPE_INTEGER:
+                            value = Integer.parseInt(_value);
+                            break;
+                        case PARAMETER_DATATYPE_FLOAT:
+                            value = Float.parseFloat(_value);
+                            break;
+                        default:
+                            value = _value;
+                    }
+
+                    parameters.replace(param.getName(), value);
+                }catch(ParseException e){
+                    logger.error("Error parsing date for report parameter", e);
+                }
+            }
+        }
+
+        return parameters;
     }
 
     public void renderToStream(Long reportId, String reportName, String outputFormat, Map<String, Object> parameters,
@@ -357,14 +415,16 @@ public class GatewayReportUtils extends AbstractReportUtils{
             throw new InvalidParameterException("Invalid report id or name");
 
         try{
-            IReportDocument report = GatewayHook.getReportEngine()
+            IReportDocument report = ReportEngineService.getInstance().getEngine()
                     .openReportDocument(reportPath);
 
-            IRenderTask task = GatewayHook.getReportEngine().createRenderTask(report);
+            IRenderTask task = ReportEngineService.getInstance().getEngine().createRenderTask(report);
 
             task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                     this.getClass().getClassLoader());
 
+
+            parameters = typeCastReportParameters(reportData, parameters);
             task.setParameterValues(parameters);
 
             RenderOption renderOptions = handleRenderOptions(outputFormat, options);
@@ -383,7 +443,8 @@ public class GatewayReportUtils extends AbstractReportUtils{
 
     @SuppressWarnings("unchecked")
     public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
-                                     Map<String, Object> parameters, Map<String, Object> options, OutputStream outputStream){
+                                     Map<String, Object> parameters, Map<String, Object> options,
+                                     OutputStream outputStream){
 
         byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
 
@@ -391,20 +452,21 @@ public class GatewayReportUtils extends AbstractReportUtils{
             throw new InvalidParameterException("Invalid report id or name");
 
         try{
-            IReportRunnable report = GatewayHook.getReportEngine()
+            IReportRunnable report = ReportEngineService.getInstance().getEngine()
                     .openReportDesign(new ByteArrayInputStream(reportData));
 
-            IRunAndRenderTask task = GatewayHook.getReportEngine().createRunAndRenderTask(report);
+            IRunAndRenderTask task = ReportEngineService.getInstance().getEngine().createRunAndRenderTask(report);
 
             task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                     this.getClass().getClassLoader());
 
+
+            parameters = typeCastReportParameters(reportData, parameters);
             task.setParameterValues(parameters);
 
             RenderOption renderOptions = handleRenderOptions(outputFormat, options);
             renderOptions.setOutputStream(outputStream);
             task.setRenderOption(renderOptions);
-
 
             task.run();
             task.close();
@@ -475,7 +537,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
         excelRenderOption.setWrappingText(options.getBooleanArg("wrapText", false));
         excelRenderOption.setHideGridlines(options.getBooleanArg("hideGridLines", false));
         excelRenderOption.setEmitterID(options.getStringArg("emitterId"));
-        logger.info(excelRenderOption.getEmitterID());
+        logger.debug(String.format("Using emitter with ID: %s", excelRenderOption.getEmitterID()));
         //  excelRenderOption.setEmitterID("org.eclipse.birt.report.engine.emitter.prototype.excel");
         //	uk.co.spudsoft.birt.emitters.excel.XlsxEmitter
         //  uk.co.spudsoft.birt.emitters.excel.XlsEmitter
