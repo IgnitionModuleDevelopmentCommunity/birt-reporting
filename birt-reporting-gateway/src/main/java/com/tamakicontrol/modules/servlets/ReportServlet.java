@@ -91,13 +91,11 @@ public class ReportServlet extends BaseServlet {
             });
 
             String baseImageURL = getRequestURLBase("(http.*)/run-and-render", req.getRequestURL().toString()) + "/images/";
-
             options.put("baseImageURL", baseImageURL);
 
             // Actually generate the report and get the content length
             ByteArrayOutputStream reportStream = new ByteArrayOutputStream();
-            reportUtils.runAndRenderToStream(reportId, reportName, outputFormat,
-                    parameters, options, reportStream);
+            reportUtils.runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, reportStream);
 
             if (outputFormat == null) {
                 resp.setContentType("text/html");
@@ -149,9 +147,7 @@ public class ReportServlet extends BaseServlet {
 
             try{
                 if(requestParams.getLongArg("reportId") != null)
-                    resp.getWriter().print(reportUtils.getReportParameters(requestParams.getLongArg("reportId")));
-                else if(requestParams.getStringArg("reportName") != null)
-                    resp.getWriter().print(reportUtils.getReportParameters(requestParams.getStringArg("reportName")));
+                    resp.getWriter().print(reportUtils.getReportParametersJSON(requestParams.getLongArg("reportId")));
                 else
                     resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             }catch (Exception e){
@@ -203,6 +199,7 @@ public class ReportServlet extends BaseServlet {
 
             /*
             *
+            * TODO Reduce this to one line
             * CW 10/27/16
             * I need to do 3 different if statements here because if the string is null
             * I need to make it, if it's blank I can't get a substring, and finally
@@ -250,7 +247,7 @@ public class ReportServlet extends BaseServlet {
     *   None
     *
     *
-    * Returns:
+    * @returns:
     *   Image
     *
     * */
@@ -277,13 +274,13 @@ public class ReportServlet extends BaseServlet {
             if(!file.exists()){
                 logger.debug(String.format("Image file %s not found", filePath));
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+            }else {
+                logger.trace(String.format("Serving image from %s", filePath));
+                resp.setContentLength((int) file.length());
+                InputStream fileStream = new FileInputStream(file);
+                IOUtils.copy(fileStream, resp.getOutputStream());
+                fileStream.close();
             }
-            resp.setContentLength((int)file.length());
-
-            logger.trace(String.format("Serving image from %s", filePath));
-            InputStream fileStream = new FileInputStream(file);
-            IOUtils.copy(fileStream, resp.getOutputStream());
-            fileStream.close();
         }
     };
 

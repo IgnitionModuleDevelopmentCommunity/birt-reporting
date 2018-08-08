@@ -1,7 +1,6 @@
 package com.tamakicontrol.modules.service;
 
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
-import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.service.api.ReportServiceException;
 import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.eclipse.birt.core.exception.BirtException;
@@ -11,13 +10,12 @@ import org.eclipse.birt.report.engine.api.*;
 import org.eclipse.core.internal.registry.RegistryProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,36 +25,38 @@ public class ReportEngineService {
     private static final Logger logger = LoggerFactory.getLogger("birt-reporting");
 
     private static ReportEngineService instance;
-
-    private IReportEngine engine = null;
-    private EngineConfig engineConfig = null;
-
+    private IReportEngine engine;
     private GatewayContext context;
 
-    private ConcurrentLinkedQueue<IEngineTask> taskQueue = new ConcurrentLinkedQueue<>();
-
-    public ReportEngineService(GatewayContext context){
+    /*
+    *
+    *
+    * */
+    public ReportEngineService(GatewayContext context) {
         this.context = context;
 
-        engineConfig = new EngineConfig();
+        EngineConfig engineConfig = new EngineConfig();
         engineConfig.setPlatformContext(new PlatformServletContext(context.getServletContext()));
-        engineConfig.setEngineHome("");
-        engineConfig.setLogConfig(context.getLogsDir().getAbsolutePath(), Level.ALL);
+        engineConfig.setLogConfig(context.getLogsDir().getAbsolutePath(), Level.INFO);
+
+        /*
+        * Remove default BIRT file logger and redirect it to SLF4J
+        * */
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        if (SLF4JBridgeHandler.isInstalled())
+            SLF4JBridgeHandler.install();
 
         try {
             Platform.startup();
-
             IReportEngineFactory factory = (IReportEngineFactory) Platform.createFactoryObject(IReportEngineFactory.EXTENSION_REPORT_ENGINE_FACTORY);
-
             engine = factory.createReportEngine(engineConfig);
-
-        }catch (BirtException e){
+        } catch (BirtException e) {
             logger.error(e.toString());
         }
 
     }
 
-    public static ReportEngineService getInstance(){
+    public static ReportEngineService getInstance() {
         return instance;
     }
 
@@ -65,80 +65,86 @@ public class ReportEngineService {
      *
      * @param servletContext
      * @throws BirtException
-     *
      */
     public synchronized static void initEngineInstance(
-            GatewayContext servletContext ) throws BirtException {
-        if ( ReportEngineService.instance != null )
+            GatewayContext servletContext) throws BirtException {
+        if (ReportEngineService.instance != null)
             return;
 
         ReportEngineService.instance = new ReportEngineService(servletContext);
     }
 
     /**
-     * Destory engine instance
-     *
-     * */
-    public synchronized static void destroyEngineInstance(){
+     * Destroy engine instance
+     */
+    public synchronized static void destroyEngineInstance() {
         ReportEngineService.getInstance().destroyEngine();
 
         Platform.shutdown();
         RegistryProviderFactory.releaseDefault();
+
+        if (SLF4JBridgeHandler.isInstalled())
+            SLF4JBridgeHandler.uninstall();
     }
 
-    public IReportEngine getEngine(){
+    public IReportEngine getEngine() {
         return this.engine;
     }
 
-    private void destroyEngine(){
-        if(engine != null)
+    private void destroyEngine() {
+        if (engine != null)
             engine.destroy();
+
     }
 
-    public IReportRunnable openReportDesign(InputStream inputStream){
+    public IReportRunnable openReportDesign(InputStream inputStream) {
         IReportRunnable reportDesign = null;
 
-        try{
+        try {
             reportDesign = engine.openReportDesign(inputStream);
-        }catch(EngineException e){
+        } catch (EngineException e) {
             logger.error(e.toString());
         }
 
         return reportDesign;
     }
 
-    public ArrayList<IParameterDefnBase> getReportParameters(byte[] reportData){
+    public ArrayList<IParameterDefnBase> getReportParameters(byte[] reportData) {
         ArrayList<IParameterDefnBase> params = null;
 
         try {
             IReportRunnable report = engine.openReportDesign(new ByteArrayInputStream(reportData));
 
             IGetParameterDefinitionTask task = engine.createGetParameterDefinitionTask(report);
-            params = (ArrayList)task.getParameterDefns(true);
-        }catch(EngineException e){
+            params = (ArrayList) task.getParameterDefns(true);
+        } catch (EngineException e) {
             logger.error("Engine exception while opening report", e);
         }
 
         return params;
     }
 
+    /*
+     *
+     * createRunAndRenderTask
+     *
+     *
+     * */
     public IRunAndRenderTask createRunAndRenderTask(IReportRunnable report, String outputFormat, Map options,
                                                     Map parameters, OutputStream outputStream) throws ReportServiceException {
 
         IRunAndRenderTask task = engine.createRunAndRenderTask(report);
 
-        task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
-                this.getClass().getClassLoader());
+        //task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
+        //        this.getClass().getClassLoader());
 
-        if(parameters != null) {
+        //if (parameters != null) {
+        //    task.setParameterValues(parameters);
+        //}
 
-            task.setParameterValues(parameters);
-        }
-
-        RenderOption renderOption = createRenderOption(outputFormat, options);
-        renderOption.setOutputStream(outputStream);
-
-        task.setRenderOption(renderOption);
+        //RenderOption renderOption = createRenderOption(outputFormat, options);
+        //renderOption.setOutputStream(outputStream);
+        //task.setRenderOption(renderOption);
 
         return task;
     }
@@ -149,14 +155,14 @@ public class ReportEngineService {
         task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
                 this.getClass().getClassLoader());
 
-        if(parameters != null)
+        if (parameters != null)
             task.setParameterValues(parameters);
 
         return task;
     }
 
     public IRenderTask createRenderTask(IReportDocument document, String outputFormat, Map options,
-                                        OutputStream outputStream){
+                                        OutputStream outputStream) {
         IRenderTask task = engine.createRenderTask(document);
 
         RenderOption renderOption = createRenderOption(outputFormat, options);
@@ -167,29 +173,29 @@ public class ReportEngineService {
         return task;
     }
 
-    private RenderOption createRenderOption(String outputFormat, Map options){
+    private RenderOption createRenderOption(String outputFormat, Map options) {
 
         RenderOption renderOption;
 
         String outFormat = outputFormat == null ? "html" : outputFormat;
 
-        if(options == null)
+        if (options == null)
             options = new HashMap<>();
 
-        if(outFormat.equalsIgnoreCase("pdf")){
+        if (outFormat.equalsIgnoreCase("pdf")) {
             renderOption = createPDFRenderOption(options);
-        }else if(outFormat.equalsIgnoreCase("xlsx")){
-            renderOption =  createExcelRenderOption(options);
-        }else if(outFormat.equalsIgnoreCase("doc")){
+        } else if (outFormat.equalsIgnoreCase("xlsx")) {
+            renderOption = createExcelRenderOption(options);
+        } else if (outFormat.equalsIgnoreCase("doc")) {
             renderOption = createWordRenderOptions(options);
-        }else{
-            renderOption =  createHTMLRenderOption(options);
+        } else {
+            renderOption = createHTMLRenderOption(options);
         }
 
         return renderOption;
     }
 
-    private HTMLRenderOption createHTMLRenderOption(Map options){
+    private HTMLRenderOption createHTMLRenderOption(Map options) {
         HTMLRenderOption htmlOptions = new HTMLRenderOption();
         ArgumentMap optionMap = new ArgumentMap(options);
 
@@ -205,10 +211,12 @@ public class ReportEngineService {
         htmlOptions.setHtmlPagination(optionMap.getBooleanArg("pagination", false));
         htmlOptions.setBaseImageURL(optionMap.getStringArg("baseImageURL"));
 
+        //context.getProjectManager().getProject().getResource().getData()
+
         return htmlOptions;
     }
 
-    private PDFRenderOption createPDFRenderOption(Map options){
+    private PDFRenderOption createPDFRenderOption(Map options) {
         PDFRenderOption pdfOptions = new PDFRenderOption();
         ArgumentMap optionMap = new ArgumentMap(options);
 
@@ -218,7 +226,7 @@ public class ReportEngineService {
         return pdfOptions;
     }
 
-    private EXCELRenderOption createExcelRenderOption(Map options){
+    private EXCELRenderOption createExcelRenderOption(Map options) {
         EXCELRenderOption excelOptions = new EXCELRenderOption();
         ArgumentMap optionMap = new ArgumentMap(options);
         excelOptions.setOutputFormat("xlsx");
@@ -231,7 +239,7 @@ public class ReportEngineService {
         return excelOptions;
     }
 
-    private RenderOption createWordRenderOptions(Map options){
+    private RenderOption createWordRenderOptions(Map options) {
         RenderOption renderOption = new RenderOption();
         renderOption.setOutputFormat("doc");
         renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
@@ -242,18 +250,18 @@ public class ReportEngineService {
                                    Map parameters, OutputStream outputStream) throws ReportServiceException {
 
         IRunAndRenderTask task;
-        try{
+        try {
             task = createRunAndRenderTask(report, outputFormat, options, parameters, outputStream);
-        }catch (ReportServiceException e){
+        } catch (ReportServiceException e) {
             throw new ReportServiceException("Exception thrown while creating run and render task", e);
         }
 
-        try{
+        try {
             task.run();
-        }catch (BirtException e){
+        } catch (BirtException e) {
             task.cancel();
             throw new ReportServiceException("Exception thrown while running report", e);
-        }finally{
+        } finally {
             task.close();
         }
 

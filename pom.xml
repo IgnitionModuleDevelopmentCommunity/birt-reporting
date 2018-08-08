@@ -13,7 +13,7 @@
     <description>An open source reporting platform for Ignition</description>
 
     <properties>
-        <ignition-sdk-version>7.8.4</ignition-sdk-version>
+        <ignition-sdk-version>7.9.1</ignition-sdk-version>
     </properties>
 
     <modules>
@@ -50,6 +50,11 @@
             <id>thirdparty</id>
             <url>http://nexus.inductiveautomation.com:8081/nexus/content/repositories/inductiveautomation-thirdparty
             </url>
+        </repository>
+
+        <repository>
+            <id>jboss</id>
+            <url>https://repository.jboss.org/nexus/content/repositories/thirdparty-releases/</url>
         </repository>
 
     </repositories>

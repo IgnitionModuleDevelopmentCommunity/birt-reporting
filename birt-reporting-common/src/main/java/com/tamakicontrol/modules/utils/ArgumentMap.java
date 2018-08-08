@@ -74,9 +74,13 @@ public class ArgumentMap extends HashMap<String, Object>{
     }
 
     public Boolean getBooleanArg(String arg){
-        String value = (String)this.get(arg);
 
-        return value != null ? Boolean.parseBoolean(value) : null;
+        try{
+            return (Boolean)this.get(arg);
+        }catch(ClassCastException e){
+            String value = (String)this.get(arg);
+            return value != null ? Boolean.parseBoolean(value) : null;
+        }
     }
 
     public Boolean getBooleanArg(String arg, Boolean defaultValue){

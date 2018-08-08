@@ -10,6 +10,7 @@ import org.python.core.PyDictionary;
 import org.python.core.PyObject;
 
 import java.util.Arrays;
+import java.util.Map;
 
 public abstract class AbstractReportUtils implements ReportUtilProvider{
 
@@ -108,7 +109,7 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
         PyDictionary parameters = (PyDictionary)pyArgs.get("parameters");
         PyDictionary options = (PyDictionary)pyArgs.get("options");
 
-        validateRunAndRenderParameters(reportId, reportName, outputFormat, parameters, options);
+        validateRunAndRenderParameters(reportId, reportName, outputFormat);
 
         return runAndRenderReport(reportId, reportName, outputFormat, parameters, options);
     }
@@ -117,24 +118,32 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
     public byte[] runAndRenderReport(long reportId, String reportName, String outputFormat,
                                      PyDictionary parameters, PyDictionary options) throws IllegalArgumentException{
 
-        validateRunAndRenderParameters(reportId, reportName, outputFormat, parameters, options);
+        validateRunAndRenderParameters(reportId, reportName, outputFormat);
         return runAndRenderReportImpl(reportId, reportName, outputFormat, parameters, options);
     }
 
-    private void validateRunAndRenderParameters(Long reportId, String reportName, String outputFormat,
-                                                  PyDictionary parameters, PyDictionary options
-    ) throws IllegalArgumentException {
+    private void validateRunAndRenderParameters(Long reportId, String reportName, String outputFormat) throws IllegalArgumentException {
         if(reportId == null && reportName == null)
             throw new IllegalArgumentException("Must specify either a report id or name");
         else if(reportId == null && reportName.equals(""))
             throw new IllegalArgumentException("Report name cannot be blank");
 
+        // TODO get supported reporting options from gateway/common RPC?
         if(!Arrays.asList(new String[] {"html", "pdf", "xls", "xlsx", "doc", "docx"}).contains(outputFormat.toLowerCase()))
             throw new IllegalArgumentException("Invalid output format specified");
     }
 
+    @Override
+    public byte[] runAndRenderReport(long reportId, String outputFormat, Map<String, Object> parameters, Map<String, Object> options) {
+        // TODO validation should work for both dictionary and pydictionary
+        //validateRunAndRenderParameters(reportId, outputFormat, parameters, options);
+        return runAndRenderReportImpl(reportId, outputFormat, parameters, options);
+    }
+
     protected abstract byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat,
                                                      PyDictionary parameters, PyDictionary options);
+
+    protected abstract byte[] runAndRenderReportImpl(long reportId, String outputFormat, Map<String, Object> parameters, Map<String,Object> options);
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
@@ -154,18 +163,10 @@ public abstract class AbstractReportUtils implements ReportUtilProvider{
 
     @Override
     @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportParameters(@ScriptArg("id") long id){
+    public Dataset getReportParameters(@ScriptArg("id") long id){
         return getReportParametersImpl(id);
     }
 
-    protected abstract String getReportParametersImpl(long id);
-
-    @Override
-    @ScriptFunction(docBundlePrefix = "ReportUtils")
-    public String getReportParameters(@ScriptArg("name") String name){
-        return getReportParametersImpl(name);
-    }
-
-    protected abstract String  getReportParametersImpl(String name);
+    protected abstract Dataset getReportParametersImpl(long id);
 
 }

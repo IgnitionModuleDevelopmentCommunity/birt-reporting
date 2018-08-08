@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 public abstract class BaseServlet extends HttpServlet {
 
     protected static final Logger logger = LoggerFactory.getLogger("birt-reporting");
+
     public static final String METHOD_GET = "GET";
     public static final String METHOD_POST = "POST";
     public static final String METHOD_PUT = "PUT";
@@ -41,7 +42,7 @@ public abstract class BaseServlet extends HttpServlet {
             throws ServletException, IOException {
         logger.debug(String.format("Request: [%s] %s", requestMethod, req.getRequestURI()));
 
-        //TODO remove this when you're done debugging
+        //TODO remove this when you're done debugging.  It would be great to have a debug switch that enables/disables
         resp.addHeader("Access-Control-Allow-Origin", "*");
 
         ServletResource resource = null;
@@ -90,7 +91,7 @@ public abstract class BaseServlet extends HttpServlet {
         doRequest("DELETE", req, resp);
     }
 
-    public void addResource(String path, String method, ServletResource resource){
+    protected void addResource(String path, String method, ServletResource resource){
 
         HashMap<String, ServletResource> routerResource = router.get(path);
 
@@ -108,7 +109,7 @@ public abstract class BaseServlet extends HttpServlet {
         return this.defaultResource;
     }
 
-    public void setDefaultResource(ServletResource resource){
+    protected void setDefaultResource(ServletResource resource){
         this.defaultResource = resource;
     }
 

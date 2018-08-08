@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
-import java.util.Date;
 
 public class GatewayHook extends AbstractGatewayModuleHook {
 
@@ -25,34 +24,35 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
     private GatewayContext gatewayContext;
 
+    @Override
+    public boolean isFreeModule() {
+        return true;
+    }
 
     @Override
     public void setup(GatewayContext gatewayContext){
         this.gatewayContext = gatewayContext;
 
-        BundleUtil.get().addBundle("BirtReporting", getClass(), "BirtReporting");
+        BundleUtil.get().addBundle("BIRTReporting", getClass(), "BIRTReporting");
 
         verifySchemas(gatewayContext);
 
         try{
             ReportEngineService.initEngineInstance(gatewayContext);
         }catch (BirtException e){
-            logger.error("Error while starting Birt Platform", e);
+            logger.error("Error while starting BIRT Platform", e);
         }
 
         gatewayContext.addServlet("birt-reporting", ReportServlet.class);
-
     }
 
     @Override
     public void startup(LicenseState licenseState) {
-        Date d = new Date();
-        d.getTime();
     }
 
     @Override
     public void shutdown() {
-        BundleUtil.get().removeBundle("TamakiReporting");
+        BundleUtil.get().removeBundle("BIRTReporting");
 
         try {
             ReportEngineService.destroyEngineInstance();
@@ -82,9 +82,5 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     public Object getRPCHandler(ClientReqSession session, Long projectId) {
         return new GatewayReportUtils(gatewayContext);
     }
-
-//    public static InputStream getStaticResource(String filePath){
-//        return GatewayHook.class.getResourceAsStream(filePath);
-//    }
 
 }

@@ -5,6 +5,10 @@ import com.inductiveautomation.ignition.common.Dataset;
 import com.tamakicontrol.modules.scripting.AbstractReportUtils;
 import com.tamakicontrol.modules.scripting.ReportUtilProvider;
 import org.python.core.PyDictionary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 
 public class ClientReportUtils extends AbstractReportUtils{
 
@@ -16,6 +20,8 @@ public class ClientReportUtils extends AbstractReportUtils{
                 ReportUtilProvider.class
         );
     }
+
+    private static final Logger logger = LoggerFactory.getLogger("birt-reporting");
 
     @Override
     protected long saveReportImpl(long id, String name, String description, byte[] reportData) {
@@ -53,6 +59,11 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
+    protected byte[] runAndRenderReportImpl(long reportId, String outputFormat, Map<String, Object> parameters, Map<String, Object> options) {
+        return rpc.runAndRenderReport(reportId, outputFormat, parameters, options);
+    }
+
+    @Override
     protected boolean removeReportImpl(long id){
         return rpc.removeReport(id);
     }
@@ -63,14 +74,8 @@ public class ClientReportUtils extends AbstractReportUtils{
     }
 
     @Override
-    protected String getReportParametersImpl(long id){
+    protected Dataset getReportParametersImpl(long id){
         return rpc.getReportParameters(id);
     }
-
-    @Override
-    protected String getReportParametersImpl(String name){
-        return rpc.getReportParameters(name);
-    }
-
 
 }

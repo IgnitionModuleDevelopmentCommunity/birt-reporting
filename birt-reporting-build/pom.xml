@@ -12,6 +12,10 @@
 
     <artifactId>birt-reporting-build</artifactId>
 
+    <properties>
+        <maven.build.timestamp.format>yyyyMMddHH</maven.build.timestamp.format>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.tamakicontrol.modules</groupId>
@@ -40,13 +44,39 @@
             <plugin>
                 <groupId>com.inductiveautomation.ignitionsdk</groupId>
                 <artifactId>ignition-maven-plugin</artifactId>
-                <version>1.0.8</version>
+                <version>1.0.12</version>
+
+                <!--<executions>-->
+                    <!--<execution>-->
+                        <!--<phase>package</phase>-->
+                        <!--<goals>-->
+                            <!--<goal>modl</goal>-->
+                        <!--</goals>-->
+                    <!--</execution>-->
+                    <!--<execution>-->
+                        <!--<id>install-modl</id>-->
+                        <!--<phase>install</phase>-->
+                        <!--<goals>-->
+                            <!--<goal>post</goal>-->
+                        <!--</goals>-->
+                    <!--</execution>-->
+                <!--</executions>-->
 
                 <executions>
                     <execution>
+                        <id>package-modl</id>
                         <phase>package</phase>
                         <goals>
                             <goal>modl</goal>
+                            <goal>post</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>post-module</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>modl</goal>
+                            <goal>post</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -74,8 +104,8 @@
                     <moduleId>com.tamakicontrol.modules.birt-reporting</moduleId>
                     <moduleName>${project.parent.name}</moduleName>
                     <moduleDescription>${project.description}</moduleDescription>
-                    <moduleVersion>1.8.0-SNAPSHOT</moduleVersion>
-                    <requiredIgnitionVersion>7.8.0</requiredIgnitionVersion>
+                    <moduleVersion>1.9.0.${maven.build.timestamp}</moduleVersion>
+                    <requiredIgnitionVersion>7.9.0</requiredIgnitionVersion>
                     <requiredFrameworkVersion>7</requiredFrameworkVersion>
 
                     <hooks>

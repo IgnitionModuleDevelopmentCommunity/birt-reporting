@@ -4,6 +4,8 @@ import com.inductiveautomation.ignition.common.Dataset;
 import org.python.core.PyDictionary;
 import org.python.core.PyObject;
 
+import java.util.Map;
+
 public interface ReportUtilProvider {
 
     public Dataset getReports();
@@ -22,15 +24,18 @@ public interface ReportUtilProvider {
 
     public boolean removeReport(long id);
 
+    // TODO remove reportName
     public boolean removeReport(String name);
 
     public byte[] runAndRenderReport(PyObject[] objects, String[] keywords);
 
+    //TODO remove reportName or create separate function
     public byte[] runAndRenderReport(long reportId, String reportName, String outputFormat,
                                      PyDictionary parameters, PyDictionary options);
 
-    public String getReportParameters(long id);
+    public byte[] runAndRenderReport(long reportId, String outputFormat, Map<String, Object>parameters,
+                                     Map<String, Object>options);
 
-    public String getReportParameters(String name);
+    public Dataset getReportParameters(long id);
 
 }
