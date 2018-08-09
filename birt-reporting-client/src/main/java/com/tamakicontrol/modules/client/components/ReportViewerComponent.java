@@ -24,7 +24,7 @@ import java.util.*;
 
 
 //TODO ReportViewerComponent Extension functions to customize tool bar
-//TODO ReportViewerComponent
+//TODO ReportViewerComponent Add Validation Method (there could be a BIRT call that does this)
 public class ReportViewerComponent extends PDFViewerComponent {
 
     //<editor-fold desc="Properties">
@@ -86,7 +86,7 @@ public class ReportViewerComponent extends PDFViewerComponent {
         firePropertyChange("reportId", old, reportId);
 
         if (reportId != null)
-            queryReportParams();
+            queryReportParams(reportId);
     }
 
     private Dataset reportParams;
@@ -104,7 +104,8 @@ public class ReportViewerComponent extends PDFViewerComponent {
             createCustomProperties();
     }
 
-    private void queryReportParams() {
+    private void queryReportParams(final Long reportId) {
+        logger.debug("Querying Report Parameters");
         if (reportId != null)
             setReportParams(reportUtils.getReportParameters(reportId));
     }
@@ -120,6 +121,20 @@ public class ReportViewerComponent extends PDFViewerComponent {
         this.loading = loading;
         loadingLabel.setVisible(loading);
     }
+
+    public boolean isLoaded() {
+        return loaded;
+    }
+
+    public void setLoaded(boolean loaded) {
+        boolean old = this.loaded;
+        this.loaded = loaded;
+        firePropertyChange("loaded", old, loaded);
+        reportFormatDropdown.setEnabled(loaded);
+    }
+
+    private boolean loaded = false;
+
 
     //</editor-fold>
 
@@ -151,6 +166,8 @@ public class ReportViewerComponent extends PDFViewerComponent {
     @Override
     protected void onStartup() {
         super.onStartup();
+
+        setLoaded(false);
 
         // copy existing print button and remove existing save & print buttons from toolbar
         JToolBar saveToolBar = (JToolBar) getToolBar().getComponentAtIndex(0);
@@ -193,13 +210,14 @@ public class ReportViewerComponent extends PDFViewerComponent {
         EventQueue.invokeLater(new Runnable() {
             @Override
             public void run() {
-                queryReportParams();
+                queryReportParams(reportId);
             }
         });
     }
 
     private synchronized void createCustomProperties() {
 
+        logger.debug("Creating Custom Properties");
         TreeMap<String, DynamicPropertyDescriptor> propertyMap = getDynamicProps() != null
                 ? getDynamicProps() : new TreeMap<String, DynamicPropertyDescriptor>();
 
@@ -207,7 +225,6 @@ public class ReportViewerComponent extends PDFViewerComponent {
 
         // add any missing properties to the dynamic property list
         for (int i = 0; i < reportParams.getRowCount(); i++) {
-
             String name = (String) reportParams.getValueAt(i, "name");
             String description = "";
             DynamicPropertyDescriptor pd;
@@ -249,19 +266,27 @@ public class ReportViewerComponent extends PDFViewerComponent {
                         break;
                 }
 
+                pd.setValue("prop.category", "Report Parameters");
                 propertyMap.put(name, pd);
+                logger.debug(String.format("Adding Custom Property %s", name));
             }
+
         }
 
         // remove any existing dynamic props that aren't in the dataset
         ArrayList<String> toRemove = new ArrayList<String>();
         for (String key : propertyMap.keySet()) {
-            if (!propertyNames.contains(key))
+            if (!propertyNames.contains(key)) {
                 toRemove.add(key);
+                logger.debug(String.format("Removing Custom Property %s", key));
+            }
         }
 
         propertyMap.keySet().removeAll(toRemove);
-        //setDynamicProps(propertyMap);
+
+        setDynamicProps(propertyMap);
+        firePropertyChange("actionConfiguration", false, true);
+
     }
 
     private Map<String, Object> getParameterValues() {
@@ -326,6 +351,7 @@ public class ReportViewerComponent extends PDFViewerComponent {
 
         byte[] bytes = reportUtils.runAndRenderReport(reportId, reportFormatString, params, renderOptions);
         setLoading(false);
+        setLoaded(true);
 
         return bytes;
     }
