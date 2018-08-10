@@ -20,6 +20,7 @@
     "classnames": "^2.2.5",
     "express": "^4.13.4",
     "lodash": "^4.16.4",
+    "package.json": "^2.0.1",
     "react": "^0.14.7",
     "react-bootstrap": "^0.30.5",
     "react-chartjs": "^0.8.0",

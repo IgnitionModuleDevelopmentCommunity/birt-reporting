@@ -18,6 +18,8 @@ public class ReportEditor extends ConfiguratorEditorSupport {
     private static final Logger logger = LoggerFactory.getLogger("birt-reporting");
 
     private JComboBox comboBox;
+
+    // TODO dynamicaly update report items
     private Vector<ReportEditorComboBoxItem> items;
 
     @Override
@@ -54,8 +56,8 @@ public class ReportEditor extends ConfiguratorEditorSupport {
 
     @Override
     public void setValue(Object value) {
-        if(value instanceof Long){
 
+        if(value instanceof Long){
             Long _value = (Long)value;
             ReportEditorComboBoxItem _item = null;
             for(ReportEditorComboBoxItem item : items){
@@ -93,6 +95,8 @@ public class ReportEditor extends ConfiguratorEditorSupport {
             if(value != null){
                 ReportEditorComboBoxItem item = (ReportEditorComboBoxItem)value;
                 setText(item.getName());
+            }else{
+                setText("CHOOSE A REPORT");
             }
 
             if(index < 0){

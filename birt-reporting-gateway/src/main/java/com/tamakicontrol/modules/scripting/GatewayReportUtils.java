@@ -8,13 +8,10 @@ import com.inductiveautomation.ignition.common.script.builtin.DatasetUtilities;
 import com.inductiveautomation.ignition.common.util.DatasetBuilder;
 import com.inductiveautomation.ignition.gateway.localdb.persistence.PersistenceSession;
 import com.inductiveautomation.ignition.gateway.model.GatewayContext;
-import com.tamakicontrol.modules.GatewayHook;
 import com.tamakicontrol.modules.records.ReportRecord;
 import com.tamakicontrol.modules.service.ReportEngineService;
-import com.tamakicontrol.modules.service.api.ReportServiceException;
 import com.tamakicontrol.modules.utils.ArgumentMap;
 import org.eclipse.birt.report.engine.api.*;
-import org.eclipse.jetty.http.DateParser;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,8 +25,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 
 import java.security.InvalidParameterException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class GatewayReportUtils extends AbstractReportUtils{
@@ -387,7 +382,7 @@ public class GatewayReportUtils extends AbstractReportUtils{
             renderOptions.setOutputStream(outputStream);
             task.setRenderOption(renderOptions);
 
-            Gson gson = new GsonBuilder().create();
+            Gson gson = new Gson();
             logger.debug(String.format("Rendering with options %s", gson.toJson(options)));
 
             task.run();
@@ -409,22 +404,22 @@ public class GatewayReportUtils extends AbstractReportUtils{
             options = new HashMap<>();
 
         if(outputFormat.equalsIgnoreCase("pdf")){
-            handlePDFRenderOptions(renderOptions, options);
+            renderOptions = handlePDFRenderOptions(renderOptions, options);
         }else if(outputFormat.equalsIgnoreCase("xlsx")){
-            handleExcelRenderOptions(renderOptions, options);
+            renderOptions = handleExcelRenderOptions(renderOptions, options);
         }else if(outputFormat.equalsIgnoreCase("xls")){
             handleSpudsoftRenderOptions(renderOptions, options);
         }else if(outputFormat.equalsIgnoreCase("doc")){
             handleWordRenderOptions(renderOptions, options);
         }else{
             renderOptions.setOutputFormat("html");
-            handleHTMLRenderOptions(renderOptions, options);
+            renderOptions = handleHTMLRenderOptions(renderOptions, options);
         }
 
         return renderOptions;
     }
 
-    private void handleHTMLRenderOptions(RenderOption renderOption, Map args){
+    private HTMLRenderOption handleHTMLRenderOptions(RenderOption renderOption, Map args){
         HTMLRenderOption htmlOptions = new HTMLRenderOption(renderOption);
         ArgumentMap options = new ArgumentMap(args);
         htmlOptions.setOutputFormat("html");
@@ -456,18 +451,27 @@ public class GatewayReportUtils extends AbstractReportUtils{
         htmlOptions.setEmbeddable(options.getBooleanArg("embeddable", false));
         htmlOptions.setHtmlPagination(options.getBooleanArg("pagination", false));
         htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
+
+        return htmlOptions;
     }
 
-    private void handlePDFRenderOptions(RenderOption renderOption, Map args){
+    private PDFRenderOption handlePDFRenderOptions(RenderOption renderOption, Map args){
         PDFRenderOption pdfOptions = new PDFRenderOption(renderOption);
         ArgumentMap options = new ArgumentMap(args);
         pdfOptions.setOutputFormat("pdf");
 
         pdfOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP");
         pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", true));
+        pdfOptions.setOption(pdfOptions.PAGE_OVERFLOW, pdfOptions.ENLARGE_PAGE_SIZE);
+        //pdfOptions.setOption(pdfOptions.PDF_PAGE_LIMIT, 100);
+
+        Gson gson = new Gson();
+        logger.debug(String.format("Render options %s", gson.toJson(pdfOptions)));
+
+        return pdfOptions;
     }
 
-    private void handleExcelRenderOptions(RenderOption renderOption, Map args){
+    private EXCELRenderOption handleExcelRenderOptions(RenderOption renderOption, Map args){
         EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOption);
         ArgumentMap options = new ArgumentMap(args);
         excelRenderOption.setOutputFormat("xlsx");
@@ -481,19 +485,24 @@ public class GatewayReportUtils extends AbstractReportUtils{
         //  excelRenderOption.setEmitterID("org.eclipse.birt.report.engine.emitter.prototype.excel");
         //	uk.co.spudsoft.birt.emitters.excel.XlsxEmitter
         //  uk.co.spudsoft.birt.emitters.excel.XlsEmitter
+
+        return excelRenderOption;
     }
 
-    private void handleSpudsoftRenderOptions(RenderOption renderOption, Map args){
+    private RenderOption handleSpudsoftRenderOptions(RenderOption renderOption, Map args){
         ArgumentMap options = new ArgumentMap(args);
 
         renderOption.setOutputFormat("xls");
         renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
         renderOption.setEmitterID(options.getStringArg("emitterId"));
+
+        return renderOption;
     }
 
-    private void handleWordRenderOptions(RenderOption renderOption, Map options){
+    private RenderOption handleWordRenderOptions(RenderOption renderOption, Map options){
         renderOption.setOutputFormat("doc");
         renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        return renderOption;
     }
 
 

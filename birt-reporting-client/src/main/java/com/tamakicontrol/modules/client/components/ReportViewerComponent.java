@@ -44,7 +44,7 @@ public class ReportViewerComponent extends PDFViewerComponent {
     }
 
     public void setReportFormat(int reportFormat) {
-        if (reportFormat >= 1 && reportFormat <= 4) {
+        if (reportFormat >= 0 && reportFormat <= 4) {
             int old = this.reportFormat;
             this.reportFormat = reportFormat;
             firePropertyChange("reportFormat", old, reportFormat);
