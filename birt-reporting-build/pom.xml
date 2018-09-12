@@ -46,22 +46,6 @@
                 <artifactId>ignition-maven-plugin</artifactId>
                 <version>1.0.12</version>
 
-                <!--<executions>-->
-                    <!--<execution>-->
-                        <!--<phase>package</phase>-->
-                        <!--<goals>-->
-                            <!--<goal>modl</goal>-->
-                        <!--</goals>-->
-                    <!--</execution>-->
-                    <!--<execution>-->
-                        <!--<id>install-modl</id>-->
-                        <!--<phase>install</phase>-->
-                        <!--<goals>-->
-                            <!--<goal>post</goal>-->
-                        <!--</goals>-->
-                    <!--</execution>-->
-                <!--</executions>-->
-
                 <executions>
                     <execution>
                         <id>package-modl</id>
@@ -82,6 +66,7 @@
                 </executions>
 
                 <configuration>
+                    <gatewayAddress>http://localhost:8088</gatewayAddress>
                     <projectScopes>
                         <projectScope>
                             <name>birt-reporting-client</name>

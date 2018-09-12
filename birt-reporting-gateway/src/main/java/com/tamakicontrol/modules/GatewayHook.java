@@ -30,16 +30,13 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     }
 
     @Override
-    public void setup(GatewayContext gatewayContext){
+    public void setup(GatewayContext gatewayContext) {
         this.gatewayContext = gatewayContext;
-
         BundleUtil.get().addBundle("BIRTReporting", getClass(), "BIRTReporting");
-
         verifySchemas(gatewayContext);
-
-        try{
+        try {
             ReportEngineService.initEngineInstance(gatewayContext);
-        }catch (BirtException e){
+        } catch (BirtException e) {
             logger.error("Error while starting BIRT Platform", e);
         }
 
@@ -47,8 +44,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
     }
 
     @Override
-    public void startup(LicenseState licenseState) {
-    }
+    public void startup(LicenseState licenseState) { }
 
     @Override
     public void shutdown() {
@@ -56,7 +52,7 @@ public class GatewayHook extends AbstractGatewayModuleHook {
 
         try {
             ReportEngineService.destroyEngineInstance();
-        }catch(Exception e){
+        } catch (Exception e) {
             logger.error("Failed to shutdown BIRT engine", e);
         }
 
@@ -70,10 +66,10 @@ public class GatewayHook extends AbstractGatewayModuleHook {
         manager.addScriptModule("system.report", new GatewayReportUtils(gatewayContext), new PropertiesFileDocProvider());
     }
 
-    private void verifySchemas(GatewayContext gatewayContext){
-        try{
+    private void verifySchemas(GatewayContext gatewayContext) {
+        try {
             gatewayContext.getSchemaUpdater().updatePersistentRecords(ReportRecord.META);
-        }catch(SQLException e){
+        } catch (SQLException e) {
             logger.error("Error while creating reporting tables", e);
         }
     }

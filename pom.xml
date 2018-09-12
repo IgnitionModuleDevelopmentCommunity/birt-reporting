@@ -27,11 +27,19 @@
     <pluginRepositories>
         <pluginRepository>
             <id>releases</id>
-            <url>http://nexus.inductiveautomation.com:8081/nexus/content/repositories/inductiveautomation-releases</url>
+            <url>https://nexus.inductiveautomation.com/repository/inductiveautomation-releases</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </pluginRepository>
     </pluginRepositories>
 
     <repositories>
+
         <repository>
             <id>releases</id>
             <url>https://nexus.inductiveautomation.com/repository/inductiveautomation-releases</url>

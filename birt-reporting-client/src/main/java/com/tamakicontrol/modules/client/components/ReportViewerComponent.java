@@ -178,7 +178,6 @@ public class ReportViewerComponent extends PDFViewerComponent {
 
         JToolBar reportExportToolbar = new JToolBar();
 
-
         reportFormatDropdown.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -336,6 +335,7 @@ public class ReportViewerComponent extends PDFViewerComponent {
         });
     }
 
+    // TODO make asynchronous?
     private byte[] generateReport(int format) {
 
         final String reportFormatString = getReportFormatStr(format);

@@ -1,7 +1,6 @@
 package com.tamakicontrol.modules.scripting;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.inductiveautomation.ignition.common.BasicDataset;
 import com.inductiveautomation.ignition.common.Dataset;
 import com.inductiveautomation.ignition.common.script.builtin.DatasetUtilities;
@@ -307,204 +306,21 @@ public class GatewayReportUtils extends AbstractReportUtils{
         return jsonArray.toString();
     }
 
-    //</editor-fold>
 
-    //<editor-fold desc="runAndRenderReport">
+    public ArrayList<IParameterDefnBase> getReportParameters(byte[] reportData) {
+        ArrayList<IParameterDefnBase> params = null;
+        IReportEngine engine = ReportEngineService.getInstance().getEngine();
 
-    @Override
-    @SuppressWarnings("unchecked")
-    protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat,
-                                            PyDictionary parameters, PyDictionary options) {
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
-        return outputStream.toByteArray();
-    }
-
-    @Override
-    public byte[] runAndRenderReportImpl(long reportId, String outputFormat, Map<String, Object> parameters, Map<String, Object> options) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        runAndRenderToStream(reportId, null, outputFormat, parameters, options, outputStream);
-        return outputStream.toByteArray();
-    }
-
-    /*
-        *
-        * This method is abstracted so that it can return an output stream to a servlet,
-        * or an output stream to the runAndRenderReportImpl method which can then return
-        * a binary array to the client which can be rendered or save however they chose.
-        *
-        *
-        * Arguments:
-        *   reportId
-        *   reportName
-        *   parameters
-        *   outputFormat
-        *   options
-        *
-        * */
-    @SuppressWarnings("unchecked")
-    public void runAndRenderToStream(Map args, OutputStream outputStream){
-
-        Long reportId = Long.parseLong((String)args.get("reportId"));
-        String reportName = (String)args.get("reportName");
-        String outputFormat = (String)args.get("outputFormat");
-        Map<String, Object> parameters = (Map)args.get("parameters");
-        Map<String, Object> options = (Map)args.get("options");
-
-        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
-    }
-
-
-    @SuppressWarnings("unchecked")
-    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
-                                     Map<String, Object> parameters, Map<String, Object> options,
-                                     OutputStream outputStream){
-
-        byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
-
-        if(reportData == null)
-            throw new InvalidParameterException("Invalid report id or name");
-
-        try{
-            IReportRunnable report = ReportEngineService.getInstance().getEngine()
-                    .openReportDesign(new ByteArrayInputStream(reportData));
-
-            IRunAndRenderTask task = ReportEngineService.getInstance().getEngine().createRunAndRenderTask(report);
-
-            task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
-                    this.getClass().getClassLoader());
-
-            parameters = typeCastReportParameters(reportData, parameters);
-            task.setParameterValues(parameters);
-
-            RenderOption renderOptions = handleRenderOptions(outputFormat, options);
-            renderOptions.setOutputStream(outputStream);
-            task.setRenderOption(renderOptions);
-
-            Gson gson = new Gson();
-            logger.debug(String.format("Rendering with options %s", gson.toJson(options)));
-
-            task.run();
-            task.close();
-
-        }catch(EngineException e){
-            logger.error("Exception while creating run and render task", e);
+        try {
+            IReportRunnable report = engine.openReportDesign(new ByteArrayInputStream(reportData));
+            IGetParameterDefinitionTask task = engine.createGetParameterDefinitionTask(report);
+            params = (ArrayList) task.getParameterDefns(true);
+        } catch (EngineException e) {
+            logger.error("Engine exception while opening report", e);
         }
 
+        return params;
     }
-
-    private RenderOption handleRenderOptions(String outputFormat, Map<String, Object> options){
-        RenderOption renderOptions = new RenderOption();
-
-        if(outputFormat == null)
-            outputFormat = "html";
-
-        if(options == null)
-            options = new HashMap<>();
-
-        if(outputFormat.equalsIgnoreCase("pdf")){
-            renderOptions = handlePDFRenderOptions(renderOptions, options);
-        }else if(outputFormat.equalsIgnoreCase("xlsx")){
-            renderOptions = handleExcelRenderOptions(renderOptions, options);
-        }else if(outputFormat.equalsIgnoreCase("xls")){
-            handleSpudsoftRenderOptions(renderOptions, options);
-        }else if(outputFormat.equalsIgnoreCase("doc")){
-            handleWordRenderOptions(renderOptions, options);
-        }else{
-            renderOptions.setOutputFormat("html");
-            renderOptions = handleHTMLRenderOptions(renderOptions, options);
-        }
-
-        return renderOptions;
-    }
-
-    private HTMLRenderOption handleHTMLRenderOptions(RenderOption renderOption, Map args){
-        HTMLRenderOption htmlOptions = new HTMLRenderOption(renderOption);
-        ArgumentMap options = new ArgumentMap(args);
-        htmlOptions.setOutputFormat("html");
-
-        IHTMLImageHandler imageHandler;
-        String imageHandlerType = options.getStringArg("image-handler", "server");
-
-        /*
-        *
-        * Image Handler Types:
-        *
-        * complete - Built for a "complete" web page.  Links in HTML are shown as file://
-        *
-        * server - Build for a web application.  Links in HTML shown as href="/images/..."
-        *
-        * */
-        if(imageHandlerType.equalsIgnoreCase("complete"))
-            imageHandler = new HTMLCompleteImageHandler();
-        else if (imageHandlerType.equalsIgnoreCase("standalone"))
-            imageHandler = new HTMLImageHandler();
-        else
-            imageHandler = new HTMLServerImageHandler();
-
-        htmlOptions.setImageHandler(imageHandler);
-        htmlOptions.setImageDirectory(gatewayContext.getTempDir().getPath());
-        htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
-
-        htmlOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
-        htmlOptions.setEmbeddable(options.getBooleanArg("embeddable", false));
-        htmlOptions.setHtmlPagination(options.getBooleanArg("pagination", false));
-        htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
-
-        return htmlOptions;
-    }
-
-    private PDFRenderOption handlePDFRenderOptions(RenderOption renderOption, Map args){
-        PDFRenderOption pdfOptions = new PDFRenderOption(renderOption);
-        ArgumentMap options = new ArgumentMap(args);
-        pdfOptions.setOutputFormat("pdf");
-
-        pdfOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP");
-        pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", true));
-        pdfOptions.setOption(pdfOptions.PAGE_OVERFLOW, pdfOptions.ENLARGE_PAGE_SIZE);
-        //pdfOptions.setOption(pdfOptions.PDF_PAGE_LIMIT, 100);
-
-        Gson gson = new Gson();
-        logger.debug(String.format("Render options %s", gson.toJson(pdfOptions)));
-
-        return pdfOptions;
-    }
-
-    private EXCELRenderOption handleExcelRenderOptions(RenderOption renderOption, Map args){
-        EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOption);
-        ArgumentMap options = new ArgumentMap(args);
-        excelRenderOption.setOutputFormat("xlsx");
-
-        excelRenderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
-        excelRenderOption.setEnableMultipleSheet(options.getBooleanArg("multipleSheet", false));
-        excelRenderOption.setWrappingText(options.getBooleanArg("wrapText", false));
-        excelRenderOption.setHideGridlines(options.getBooleanArg("hideGridLines", false));
-        excelRenderOption.setEmitterID(options.getStringArg("emitterId"));
-        logger.debug(String.format("Using emitter with ID: %s", excelRenderOption.getEmitterID()));
-        //  excelRenderOption.setEmitterID("org.eclipse.birt.report.engine.emitter.prototype.excel");
-        //	uk.co.spudsoft.birt.emitters.excel.XlsxEmitter
-        //  uk.co.spudsoft.birt.emitters.excel.XlsEmitter
-
-        return excelRenderOption;
-    }
-
-    private RenderOption handleSpudsoftRenderOptions(RenderOption renderOption, Map args){
-        ArgumentMap options = new ArgumentMap(args);
-
-        renderOption.setOutputFormat("xls");
-        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
-        renderOption.setEmitterID(options.getStringArg("emitterId"));
-
-        return renderOption;
-    }
-
-    private RenderOption handleWordRenderOptions(RenderOption renderOption, Map options){
-        renderOption.setOutputFormat("doc");
-        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
-        return renderOption;
-    }
-
 
     /**
      *
@@ -512,10 +328,14 @@ public class GatewayReportUtils extends AbstractReportUtils{
      * If you try to send BIRT a string argument (from a web call) to a report expecting an integer,
      * it throws an exception.
      *
+     * @param reportData byte[] binary copy of report runnable to submit to the report engine
+     * @param parameters key value pair of submitted report parameters
+     *
      * */
+    //TODO I think I broke this for the REST API unless a report is using a string argument
     private Map<String, Object> typeCastReportParameters(byte[] reportData, Map<String, Object> parameters){
 
-        ArrayList<IParameterDefnBase> reportParameters = ReportEngineService.getInstance().getReportParameters(reportData);
+        ArrayList<IParameterDefnBase> reportParameters = getReportParameters(reportData);
 
         for(IParameterDefnBase _param : reportParameters) {
             IScalarParameterDefn param = (IScalarParameterDefn)_param;
@@ -556,6 +376,254 @@ public class GatewayReportUtils extends AbstractReportUtils{
         }
 
         return parameters;
+    }
+
+
+    //</editor-fold>
+
+    //<editor-fold desc="runAndRenderReport">
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected byte[] runAndRenderReportImpl(long reportId, String reportName, String outputFormat,
+                                            PyDictionary parameters, PyDictionary options) {
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
+        return outputStream.toByteArray();
+    }
+
+    @Override
+    public byte[] runAndRenderReportImpl(long reportId, String outputFormat, Map<String, Object> parameters, Map<String, Object> options) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        runAndRenderToStream(reportId, null, outputFormat, parameters, options, outputStream);
+        return outputStream.toByteArray();
+    }
+
+
+    /**
+     * Python dictiony/args version of runAndRenderToStream
+     * */
+    @SuppressWarnings("unchecked")
+    public void runAndRenderToStream(Map args, OutputStream outputStream){
+
+        Long reportId = Long.parseLong((String)args.get("reportId"));
+        String reportName = (String)args.get("reportName");
+        String outputFormat = (String)args.get("outputFormat");
+        Map<String, Object> parameters = (Map)args.get("parameters");
+        Map<String, Object> options = (Map)args.get("options");
+
+        runAndRenderToStream(reportId, reportName, outputFormat, parameters, options, outputStream);
+    }
+
+
+    /**
+     *
+     * Abstracted method that will allow us to return an output stream to a servlet, or through an RPC call
+     * that will return data to a client/designer.
+     *
+     * @param reportId report ID used to look up the report document from SQL
+     * @param reportName
+     * @param outputFormat string representation of the output format html/pdf/xls/doc
+     * @param parameters Report parameters
+     * @param options Rendering options
+     * @param outputStream Output stream that will take the rendered report stream
+     *
+     * */
+    @SuppressWarnings("unchecked")
+    public void runAndRenderToStream(Long reportId, String reportName, String outputFormat,
+                                     Map<String, Object> parameters, Map<String, Object> options,
+                                     OutputStream outputStream){
+
+        byte[] reportData = (reportId == null) ? getReport(reportName) : getReport(reportId);
+
+        if(reportData == null)
+            throw new InvalidParameterException("Invalid report id or name");
+
+        try{
+            IReportRunnable report = ReportEngineService.getInstance().getEngine()
+                    .openReportDesign(new ByteArrayInputStream(reportData));
+
+            IRunAndRenderTask task = ReportEngineService.getInstance().getEngine().createRunAndRenderTask(report);
+
+            task.getAppContext().put(EngineConstants.APPCONTEXT_BIRT_VIEWER_HTTPSERVET_REQUEST,
+                    this.getClass().getClassLoader());
+
+            parameters = typeCastReportParameters(reportData, parameters);
+            task.setParameterValues(parameters);
+
+            RenderOption renderOptions = handleRenderOptions(outputFormat, options);
+            renderOptions.setOutputStream(outputStream);
+            task.setRenderOption(renderOptions);
+
+            Gson gson = new Gson();
+            logger.debug(String.format("Rendering with options %s", gson.toJson(options)));
+
+            task.run();
+            task.close();
+
+        }catch(EngineException e){
+            logger.error("Exception while creating run and render task", e);
+        }
+
+    }
+
+    /**
+     *
+     * Appends PDF specific rendering options to the report
+     *
+     * @param outputFormat pdf/excel/word etc. output format
+     * @param options key/value pairs of rendering options to submit
+     *
+     * */
+    private RenderOption handleRenderOptions(String outputFormat, Map<String, Object> options){
+        RenderOption renderOptions = new RenderOption();
+
+        if(outputFormat == null)
+            outputFormat = "html";
+
+        if(options == null)
+            options = new HashMap<>();
+
+        if(outputFormat.equalsIgnoreCase("pdf")){
+            renderOptions = handlePDFRenderOptions(renderOptions, options);
+        }else if(outputFormat.equalsIgnoreCase("xlsx")){
+            renderOptions = handleExcelRenderOptions(renderOptions, options);
+        }else if(outputFormat.equalsIgnoreCase("xls")){
+            handleSpudsoftRenderOptions(renderOptions, options);
+        }else if(outputFormat.equalsIgnoreCase("doc")){
+            handleWordRenderOptions(renderOptions, options);
+        }else{
+            renderOptions.setOutputFormat("html");
+            renderOptions = handleHTMLRenderOptions(renderOptions, options);
+        }
+
+        return renderOptions;
+    }
+
+    /**
+     *
+     * Appends HTML specific rendering options to the report
+     *
+     * @param renderOption base renderOption class to append to
+     * @param args arguments provided from scripting API
+     *
+     * */
+    private HTMLRenderOption handleHTMLRenderOptions(RenderOption renderOption, Map args){
+        HTMLRenderOption htmlOptions = new HTMLRenderOption(renderOption);
+        ArgumentMap options = new ArgumentMap(args);
+        htmlOptions.setOutputFormat("html");
+
+        IHTMLImageHandler imageHandler;
+        String imageHandlerType = options.getStringArg("image-handler", "server");
+
+        /*
+        * Image Handler Types:
+        *   complete - Built for a "complete" web page.  Links in HTML are shown as file:/
+        *   server - Build for a web application.  Links in HTML shown as href="/images/..."
+        * */
+        if(imageHandlerType.equalsIgnoreCase("complete"))
+            imageHandler = new HTMLCompleteImageHandler();
+        else if (imageHandlerType.equalsIgnoreCase("standalone"))
+            imageHandler = new HTMLImageHandler();
+        else
+            imageHandler = new HTMLServerImageHandler();
+
+        htmlOptions.setImageHandler(imageHandler);
+        htmlOptions.setImageDirectory(gatewayContext.getTempDir().getPath());
+        htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
+
+        htmlOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP;SWF;SVG");
+        htmlOptions.setEmbeddable(options.getBooleanArg("embeddable", false));
+        htmlOptions.setHtmlPagination(options.getBooleanArg("pagination", false));
+        htmlOptions.setBaseImageURL(options.getStringArg("baseImageURL"));
+
+        return htmlOptions;
+    }
+
+    /**
+     *
+     * Appends PDF specific rendering options to the report
+     *
+     * @param renderOption base renderOption class to append to
+     * @param args arguments provided from scripting API
+     *
+     * */
+    private PDFRenderOption handlePDFRenderOptions(RenderOption renderOption, Map args){
+        PDFRenderOption pdfOptions = new PDFRenderOption(renderOption);
+        ArgumentMap options = new ArgumentMap(args);
+        pdfOptions.setOutputFormat("pdf");
+
+        pdfOptions.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        pdfOptions.setEmbededFont(options.getBooleanArg("embeddedFont", true));
+        //pdfOptions.setOption(pdfOptions.PAGE_OVERFLOW, pdfOptions.OUTPUT_TO_MULTIPLE_PAGES);
+        //pdfOptions.setOption(pdfOptions.REPAGINATE_FOR_PDF, true);
+
+        //pdfOptions.setOption(pdfOptions.PDF_PAGE_LIMIT, 100);
+
+        Gson gson = new Gson();
+        logger.debug(String.format("Render options %s", gson.toJson(pdfOptions)));
+
+        return pdfOptions;
+    }
+
+    /**
+     *
+     * Appends Excel specific rendering options to the report
+     *
+     * @param renderOption base renderOption class to append to
+     * @param args arguments provided from scripting API
+     *
+     * */
+    private EXCELRenderOption handleExcelRenderOptions(RenderOption renderOption, Map args){
+        EXCELRenderOption excelRenderOption = new EXCELRenderOption(renderOption);
+        ArgumentMap options = new ArgumentMap(args);
+        excelRenderOption.setOutputFormat("xlsx");
+
+        excelRenderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        excelRenderOption.setEnableMultipleSheet(options.getBooleanArg("multipleSheet", false));
+        excelRenderOption.setWrappingText(options.getBooleanArg("wrapText", false));
+        excelRenderOption.setHideGridlines(options.getBooleanArg("hideGridLines", false));
+        excelRenderOption.setEmitterID(options.getStringArg("emitterId"));
+        logger.debug(String.format("Using emitter with ID: %s", excelRenderOption.getEmitterID()));
+        //  excelRenderOption.setEmitterID("org.eclipse.birt.report.engine.emitter.prototype.excel");
+        //	uk.co.spudsoft.birt.emitters.excel.XlsxEmitter
+        //  uk.co.spudsoft.birt.emitters.excel.XlsEmitter
+
+        return excelRenderOption;
+    }
+
+    /**
+     *
+     * Appends Spudsoft Excel Emitter Rendering Options to the report
+     *
+     * @param renderOption base renderOption class to append to
+     * @param args arguments provided from scripting API
+     *
+     * */
+    private RenderOption handleSpudsoftRenderOptions(RenderOption renderOption, Map args){
+        ArgumentMap options = new ArgumentMap(args);
+
+        // TODO images missing from spudsoft emitter
+        renderOption.setOutputFormat("xls");
+        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        renderOption.setEmitterID(options.getStringArg("emitterId"));
+
+        return renderOption;
+    }
+
+    /**
+     *
+     * Appends Word specific rendering options to the report
+     *
+     * @param renderOption base renderOption class to append to
+     * @param args arguments provided from scripting API
+     *
+     * */
+    private RenderOption handleWordRenderOptions(RenderOption renderOption, Map args){
+        renderOption.setOutputFormat("doc");
+        renderOption.setSupportedImageFormats("PNG;GIF;JPG;BMP");
+        return renderOption;
     }
 
     //</editor-fold>

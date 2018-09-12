@@ -26,12 +26,12 @@ import java.util.regex.Pattern;
 * */
 public abstract class BaseServlet extends HttpServlet {
 
-    protected static final Logger logger = LoggerFactory.getLogger("birt-reporting");
+    private static final Logger logger = LoggerFactory.getLogger("birt-reporting");
 
-    public static final String METHOD_GET = "GET";
-    public static final String METHOD_POST = "POST";
-    public static final String METHOD_PUT = "PUT";
-    public static final String METHOD_DELETE = "DELETE";
+    protected static final String METHOD_GET = "GET";
+    protected static final String METHOD_POST = "POST";
+    protected static final String METHOD_PUT = "PUT";
+    protected static final String METHOD_DELETE = "DELETE";
 
     private HashMap<String, HashMap<String, ServletResource>> router = new HashMap<>();
     private ServletResource defaultResource;
