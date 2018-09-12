@@ -89,7 +89,7 @@
                     <moduleId>com.tamakicontrol.modules.birt-reporting</moduleId>
                     <moduleName>${project.parent.name}</moduleName>
                     <moduleDescription>${project.description}</moduleDescription>
-                    <moduleVersion>1.9.0.${maven.build.timestamp}</moduleVersion>
+                    <moduleVersion>1.9.1.${maven.build.timestamp}</moduleVersion>
                     <requiredIgnitionVersion>7.9.0</requiredIgnitionVersion>
                     <requiredFrameworkVersion>7</requiredFrameworkVersion>
 
