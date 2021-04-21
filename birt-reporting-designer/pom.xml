@@ -7,7 +7,7 @@
     <parent>
         <artifactId>birt-reporting</artifactId>
         <groupId>com.tamakicontrol.modules</groupId>
-        <version>2.0.0</version>
+        <version>2.0.1</version>
     </parent>
 
     <artifactId>birt-reporting-designer</artifactId>
@@ -16,12 +16,12 @@
         <dependency>
             <groupId>com.tamakicontrol.modules</groupId>
             <artifactId>birt-reporting-client</artifactId>
-            <version>2.0.0</version>
+            <version>2.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.tamakicontrol.modules</groupId>
             <artifactId>birt-reporting-common</artifactId>
-            <version>2.0.0</version>
+            <version>2.0.1</version>
         </dependency>
 
         <dependency>
